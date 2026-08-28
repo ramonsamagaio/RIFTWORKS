@@ -50,7 +50,7 @@ void ARiftHUD::DrawHUD()
         }
 
         const FString Status = FString::Printf(
-            TEXT("RIFTWORKS  //  GRID DARK\nHP %.0f   FLASHLIGHT %.0f%%   SCRAP %d\nGRID %.1f kW GEN  /  %.1f kW LOAD   |   %.2f kWh STORED"),
+            TEXT("RIFTWORKS\nHP %.0f   LIGHT %.0f%%   SCRAP %d\nGRID %.1f kW GEN / %.1f kW LOAD / %.2f kWh"),
             Player->Health,
             Player->FlashlightBattery,
             Player->Scrap,
@@ -61,16 +61,17 @@ void ARiftHUD::DrawHUD()
 
         const float CX = W * 0.5f;
         const float CY = H * 0.5f;
-        DrawLine(CX - 7.0f, CY, CX + 7.0f, CY, FLinearColor(0.9f, 0.95f, 1.0f, 0.65f), 1.0f);
-        DrawLine(CX, CY - 7.0f, CX, CY + 7.0f, FLinearColor(0.9f, 0.95f, 1.0f, 0.65f), 1.0f);
+        const FLinearColor Cross = Player->bBuildMode ? Warm : FLinearColor(0.9f, 0.95f, 1.0f, 0.65f);
+        DrawLine(CX - 7.0f, CY, CX + 7.0f, CY, Cross, 1.0f);
+        DrawLine(CX, CY - 7.0f, CX, CY + 7.0f, Cross, 1.0f);
 
         if (!Player->CurrentInteractionText.IsEmpty())
         {
             const FString Prompt = Player->CurrentInteractionText.ToString();
             float XL = 0.0f;
             float YL = 0.0f;
-            GetTextSize(Prompt, XL, YL, Font, 1.15f);
-            DrawText(Prompt, Warm, CX - XL * 0.5f, H * 0.70f, Font, 1.15f, false);
+            GetTextSize(Prompt, XL, YL, Font, Player->bBuildMode ? 1.0f : 1.15f);
+            DrawText(Prompt, Warm, CX - XL * 0.5f, H * 0.70f, Font, Player->bBuildMode ? 1.0f : 1.15f, false);
         }
 
         if (Player->CarriedSalvage)
@@ -78,9 +79,13 @@ void ARiftHUD::DrawHUD()
             const FString Cargo = FString::Printf(TEXT("CARRYING: %s   |   J DROP   H SECURE AT BASE"), *Player->CarriedSalvage->DisplayName.ToString());
             DrawText(Cargo, Warm, SafeMargin, H - 70.0f, Font, 1.0f, false);
         }
+        else if (Player->bBuildMode)
+        {
+            DrawText(TEXT("BUILD MODE   RMB PLACE   WHEEL PIECE   R ROTATE   Q ANCHOR   B EXIT"), Warm, SafeMargin, H - 48.0f, Font, 0.95f, false);
+        }
         else
         {
-            DrawText(TEXT("F FLASHLIGHT   E INTERACT   SHIFT SPRINT   CTRL CROUCH   LMB FIRE"), Dim, SafeMargin, H - 48.0f, Font, 0.95f, false);
+            DrawText(TEXT("F LIGHT   E INTERACT   SHIFT SPRINT   CTRL CROUCH   LMB FIRE   B BUILD"), Dim, SafeMargin, H - 48.0f, Font, 0.95f, false);
         }
     }
 
