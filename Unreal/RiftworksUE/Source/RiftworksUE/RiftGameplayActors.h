@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/DamageEvents.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "RiftPlayerCharacter.h"
