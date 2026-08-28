@@ -37,6 +37,17 @@ public:
     TObjectPtr<UHierarchicalInstancedStaticMeshComponent> FoliageInstances;
 
     void BuildSurfaceChunk(FIntPoint Key, int32 WorldSeed, float ChunkSize);
+
+    // AActor::SetActorLabel is editor-only. This shim keeps the procedural source valid in game builds too.
+    void SetActorLabel(const FString& NewActorLabel, bool bMarkDirty = true)
+    {
+#if WITH_EDITOR
+        AActor::SetActorLabel(NewActorLabel, bMarkDirty);
+#else
+        (void)NewActorLabel;
+        (void)bMarkDirty;
+#endif
+    }
 };
 
 UCLASS(Blueprintable)
