@@ -1361,8 +1361,8 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Interaction raycast/highlight.
 - [ ] Inventory with weight/volume rules.
 - [x] Carry heavy component interaction.
-- [ ] Dismantling.
-- [ ] Salvage tiers/tools.
+- [x] Dismantling.
+- [x] Salvage tiers/tools.
 - [x] Transportable industrial components.
 
 ## Power grid
@@ -1379,37 +1379,37 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Player-built blackout automation.
 
 ## Functional Assembly System
-- [ ] Placement/snap system.
+- [x] Placement/snap system.
 - [x] Structural platform.
-- [ ] Weld joint.
+- [x] Weld joint.
 - [x] Hinge.
 - [x] Wheel.
 - [x] Motor.
 - [x] Button/switch.
 - [x] Signal link.
 - [x] Sensor.
-- [ ] Slider/piston.
-- [ ] Rope/cable physical connection.
+- [x] Slider/piston.
+- [x] Rope/cable physical connection.
 - [x] Blueprint serialization.
 - [x] Blueprint reconstruction.
 
 ## Bases / logistics
 - [x] Claim existing structure as base.
-- [ ] Base inventory.
+- [x] Base inventory.
 - [ ] Outposts.
 - [x] Heavy salvage logistics.
 - [x] Winch.
-- [ ] Lift/elevator.
-- [ ] Rail/cart transport.
-- [ ] Conveyor/logistics system.
+- [x] Lift/elevator.
+- [x] Rail/cart transport.
+- [x] Conveyor/logistics system.
 
 ## Combat / AI
 - [x] Basic weapon framework.
 - [x] Reusable humanoid enemy controller.
-- [ ] Humanoid perception of light/sound.
+- [x] Humanoid perception of light/sound.
 - [x] Humanoid ranged combat.
 - [x] Simple drone/automaton.
-- [ ] Simple non-humanoid creature.
+- [x] Simple non-humanoid creature.
 - [x] Loot/harvesting from enemies.
 
 ## Colossi
@@ -1418,7 +1418,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Distant audio/footstep presence.
 - [x] Vulnerable zones.
 - [ ] Environmental interaction.
-- [ ] Engineered hunting support.
+- [x] Engineered hunting support.
 - [x] Harvestable Colossus component.
 - [x] First component unlocks a new engineering property.
 
@@ -1428,7 +1428,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Attraction component.
 - [x] Luminance component.
 - [ ] Thermal/Cryo component.
-- [ ] Gravity component.
+- [x] Gravity component.
 - [ ] High-end Phase concept.
 
 ## UI / feedback
@@ -1482,3 +1482,10 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - Humanoid enemies reuse one low-poly architecture and now include melee/ranged behavior, flashlight visibility response, power-signature investigation and muzzle flashes that reveal combatants in darkness.
 - The Walker Colossus roams, has targeted weak zones, drops physical harvest, and now produces synthesized spatial low-frequency footstep thumps so it can be heard before it is clearly seen.
 - Base claiming, death return, save/load, weather, combat, heavy-cargo handling and strict Godot 4.6.3 compile plus scene-boot CI are present in prototype form.
+- The Unreal vertical slice now implements Tier 1–4 salvage progression with explicit recovery-tool gates, dismantling into generic/component materials, physically recoverable Tier 3/4 machinery and staged recovery equipment at increasing depths.
+- Fixed fabrication is now represented by a reusable fabricator for ammunition, cable, fasteners, structural pieces, medical kits and replacement parts instead of turning machine construction into recipe crafting.
+- Logistics now shares the same physical cargo model across pushable carts, powered conveyors, recovery winches and a grid-powered freight lift, allowing heavy salvage to move through an actual recovery chain.
+- The Unreal FAS already exposes grid-snapped placement plus Weld, Hinge, Slider and Rope/Winch constraints as reusable generic joint behaviors rather than machine-specific scripts.
+- A rigid-part procedural crawler now provides a first production-efficient non-humanoid creature family with procedural gait, melee behavior and physical harvest drops.
+- Humanoid Unreal AI uses sight and hearing perception plus explicit flashlight visibility response, keeping darkness connected to enemy awareness.
+- A functional Gravity Breach emitter is staged in the deep chamber alongside the existing repulsion, attraction and luminance components, allowing physics cargo to experience altered effective gravity.
