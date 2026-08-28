@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/assembly_system.gd" type="Script" id="2"]
@@ -10,6 +10,7 @@
 [ext_resource path="res://scripts/base_system.gd" type="Script" id="8"]
 [ext_resource path="res://scripts/save_system.gd" type="Script" id="9"]
 [ext_resource path="res://scripts/weather_system.gd" type="Script" id="10"]
+[ext_resource path="res://scripts/carry_system.gd" type="Script" id="11"]
 
 [node name="Riftworks" type="Node3D"]
 script = ExtResource("1")
@@ -40,3 +41,6 @@ script = ExtResource("9")
 
 [node name="WeatherSystem" type="Node3D" parent="."]
 script = ExtResource("10")
+
+[node name="CarrySystem" type="Node3D" parent="."]
+script = ExtResource("11")
