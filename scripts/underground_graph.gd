@@ -10,7 +10,7 @@ const SEED := 884211
 
 var player: RiftPlayer
 var rng := RandomNumberGenerator.new()
-var links := {}
+var links: Dictionary = {}
 
 func _ready() -> void:
     rng.seed = SEED
@@ -20,14 +20,14 @@ func _ready() -> void:
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
     _populate()
 
-func _mat(color: Color, metallic := 0.0, roughness := 0.9) -> StandardMaterial3D:
+func _mat(color: Color, metallic: float = 0.0, roughness: float = 0.9) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
     mat.albedo_color = color
     mat.metallic = metallic
     mat.roughness = roughness
     return mat
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, collide := true, metallic := 0.0) -> Node3D:
+func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, collide: bool = true, metallic: float = 0.0) -> Node3D:
     var root: Node3D
     if collide:
         var body := StaticBody3D.new()
@@ -51,60 +51,71 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, collide := 
     return root
 
 func _generate_maze() -> Dictionary:
-    var result := {}
-    var visited := {}
+    var result: Dictionary = {}
+    var visited: Dictionary = {}
     var stack: Array[Vector2i] = [START_CELL]
     visited[START_CELL] = true
     result[START_CELL] = []
-    var dirs := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+    var dirs: Array[Vector2i] = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 
     while not stack.is_empty():
         var current: Vector2i = stack[-1]
         var candidates: Array[Vector2i] = []
-        for dir in dirs:
-            var next := current + dir
-            if next.x < 0 or next.x >= COLS or next.y < 0 or next.y >= ROWS:
+        for dir: Vector2i in dirs:
+            var next_cell: Vector2i = current + dir
+            if next_cell.x < 0 or next_cell.x >= COLS or next_cell.y < 0 or next_cell.y >= ROWS:
                 continue
-            if not visited.has(next):
-                candidates.append(next)
+            if not visited.has(next_cell):
+                candidates.append(next_cell)
         if candidates.is_empty():
             stack.pop_back()
             continue
-        var chosen := candidates[rng.randi_range(0, candidates.size()-1)]
-        if not result.has(current): result[current] = []
-        if not result.has(chosen): result[chosen] = []
-        result[current].append(chosen)
-        result[chosen].append(current)
+        var chosen: Vector2i = candidates[rng.randi_range(0, candidates.size()-1)]
+        if not result.has(current):
+            result[current] = []
+        if not result.has(chosen):
+            result[chosen] = []
+        var current_links: Array = result[current] as Array
+        var chosen_links: Array = result[chosen] as Array
+        current_links.append(chosen)
+        chosen_links.append(current)
         visited[chosen] = true
         stack.append(chosen)
 
     # Add a few loops so the underworld is not a single perfect maze.
-    for i in range(10):
+    for _i: int in range(10):
         var c := Vector2i(rng.randi_range(0,COLS-1), rng.randi_range(0,ROWS-1))
         var dir: Vector2i = dirs[rng.randi_range(0,dirs.size()-1)]
-        var n := c + dir
+        var n: Vector2i = c + dir
         if n.x >= 0 and n.x < COLS and n.y >= 0 and n.y < ROWS:
-            if not n in result[c]:
-                result[c].append(n)
-                result[n].append(c)
+            var c_links: Array = result.get(c, []) as Array
+            var n_links: Array = result.get(n, []) as Array
+            if not n in c_links:
+                c_links.append(n)
+                n_links.append(c)
+                result[c] = c_links
+                result[n] = n_links
     return result
 
 func _cell_position(cell: Vector2i) -> Vector3:
     return ORIGIN + Vector3(cell.x * CELL, 0, -cell.y * CELL)
 
 func _connected(a: Vector2i, b: Vector2i) -> bool:
-    return links.has(a) and b in links[a]
+    if not links.has(a):
+        return false
+    var a_links: Array = links[a] as Array
+    return b in a_links
 
 func _build_maze() -> void:
-    for x in range(COLS):
-        for y in range(ROWS):
+    for x: int in range(COLS):
+        for y: int in range(ROWS):
             var cell := Vector2i(x,y)
             var root := Node3D.new()
             root.name = "DepthRoom_%d_%d" % [x,y]
             root.position = _cell_position(cell)
             add_child(root)
 
-            var tint := rng.randf_range(-0.01,0.018)
+            var tint: float = rng.randf_range(-0.01,0.018)
             _box(root, Vector3(0,-0.55,0), Vector3(CELL,0.55,CELL), Color(0.07+tint,0.078+tint,0.087+tint))
             _box(root, Vector3(0,4.65,0), Vector3(CELL,0.35,CELL), Color("151a1f"))
 
@@ -135,10 +146,10 @@ func _wall_z(root: Node3D, center: Vector3, opening: bool) -> void:
 func _populate() -> void:
     if not is_instance_valid(player):
         return
-    for x in range(COLS):
-        for y in range(ROWS):
+    for x: int in range(COLS):
+        for y: int in range(ROWS):
             var cell := Vector2i(x,y)
-            var base := _cell_position(cell)
+            var base: Vector3 = _cell_position(cell)
             if rng.randf() < 0.17 and cell != START_CELL:
                 var drone := DroneEnemy.new()
                 drone.target = player
@@ -146,7 +157,7 @@ func _populate() -> void:
                 add_child(drone)
             if rng.randf() < 0.24:
                 var prop := SalvageProp.new()
-                var breach_roll := rng.randf()
+                var breach_roll: float = rng.randf()
                 if breach_roll < 0.2:
                     prop.configure("electronics", "Breach Circuit", 2, 0, Color("8e6cc4"))
                 elif breach_roll < 0.52:
