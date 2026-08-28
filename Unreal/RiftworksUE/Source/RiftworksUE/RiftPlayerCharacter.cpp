@@ -1,6 +1,7 @@
 #include "RiftPlayerCharacter.h"
 #include "RiftGameplayActors.h"
 
+#include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -81,6 +82,7 @@ void ARiftPlayerCharacter::Tick(float DeltaSeconds)
     }
 
     UpdateInteractionTrace();
+    UpdateFallbackAnimation();
 }
 
 void ARiftPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -223,6 +225,16 @@ void ARiftPlayerCharacter::FirePressed()
     }
 
     UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), 1.0f, this, 6500.0f, TEXT("Gunshot"));
+
+    if (bUseSingleNodeAnimationFallback && PistolShootAnimation && GetMesh())
+    {
+        bAttackAnimationLocked = true;
+        CurrentFallbackAnimation = PistolShootAnimation;
+        GetMesh()->PlayAnimation(PistolShootAnimation, false);
+        GetWorldTimerManager().ClearTimer(AttackAnimationTimer);
+        GetWorldTimerManager().SetTimer(AttackAnimationTimer, this, &ARiftPlayerCharacter::EndAttackAnimation, FMath::Max(0.15f, PistolShootAnimation->GetPlayLength()), false);
+    }
+
     BP_OnWeaponFired(Hit);
 }
 
@@ -231,6 +243,45 @@ void ARiftPlayerCharacter::EndMuzzleFlash()
     if (MuzzleFlash)
     {
         MuzzleFlash->SetIntensity(0.0f);
+    }
+}
+
+void ARiftPlayerCharacter::EndAttackAnimation()
+{
+    bAttackAnimationLocked = false;
+    CurrentFallbackAnimation = nullptr;
+}
+
+void ARiftPlayerCharacter::UpdateFallbackAnimation()
+{
+    if (!bUseSingleNodeAnimationFallback || bAttackAnimationLocked || !GetMesh())
+    {
+        return;
+    }
+
+    UAnimSequenceBase* Desired = nullptr;
+    const float Speed = GetVelocity().Size2D();
+    if (bIsCrouched && CrouchAnimation)
+    {
+        Desired = CrouchAnimation;
+    }
+    else if (Speed < 10.0f)
+    {
+        Desired = IdleAnimation;
+    }
+    else if (Speed < WalkSpeed * 1.15f)
+    {
+        Desired = WalkAnimation;
+    }
+    else
+    {
+        Desired = RunAnimation;
+    }
+
+    if (Desired && Desired != CurrentFallbackAnimation)
+    {
+        CurrentFallbackAnimation = Desired;
+        GetMesh()->PlayAnimation(Desired, true);
     }
 }
 
