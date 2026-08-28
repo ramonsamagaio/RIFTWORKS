@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "RiftWorldDirector.generated.h"
 
+class USceneComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class UDirectionalLightComponent;
 class USkyLightComponent;
