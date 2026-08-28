@@ -22,6 +22,8 @@ func _unhandled_input(event: InputEvent) -> void:
             _place_attraction_emitter()
         KEY_M:
             _place_luminance_emitter()
+        KEY_Z:
+            _place_gravity_emitter()
 
 func _make_ui() -> void:
     var layer := CanvasLayer.new()
@@ -37,7 +39,7 @@ func _make_ui() -> void:
     ui.size = Vector2(360, 56)
     ui.add_theme_font_size_override("font_size", 14)
     ui.add_theme_color_override("font_color", Color("c6addf"))
-    ui.text = "BREACH ENGINEERING\n0 repulsion   N attraction   M luminance"
+    ui.text = "BREACH ENGINEERING\n0 repulsion   N attraction   M luminance   Z gravity"
     layer.add_child(ui)
 
 func _spawn_deep_cores() -> void:
@@ -52,11 +54,11 @@ func _spawn_deep_cores() -> void:
         "Repulsion Breach Core",
         "Attraction Breach Core",
         "Luminance Breach Core",
-        "Dense Breach Core",
+        "Dense Gravity Core",
         "Resonant Breach Core"
     ]
     var colors: Array[Color] = [
-        Color("9874db"), Color("55c0c8"), Color("ffd99a"), Color("8b79bd"), Color("b272c2")
+        Color("9874db"), Color("55c0c8"), Color("ffd99a"), Color("8b91e8"), Color("b272c2")
     ]
     for i in range(positions.size()):
         var core := SalvageProp.new()
@@ -114,6 +116,16 @@ func _place_luminance_emitter() -> void:
     emitter.position = _build_position()
     add_child(emitter)
     _message("LUMINANCE ONLINE. High-output Breach light accepts logic signals.")
+
+func _place_gravity_emitter() -> void:
+    if not _can_build():
+        _message("Need 1 Breach Core + 1 electronics + 5 scrap")
+        return
+    _pay_build()
+    var emitter := GravityEmitter.new()
+    emitter.position = _build_position()
+    add_child(emitter)
+    _message("GRAVITY FIELD ONLINE. Makes heavy physics cargo dramatically lighter.")
 
 func _message(text: String) -> void:
     if is_instance_valid(ui):
