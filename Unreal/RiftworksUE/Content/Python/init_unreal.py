@@ -7,6 +7,7 @@ try:
     import riftworks_vertical_slice
     import riftworks_scene_dressing
     import riftworks_accessibility_pass
+    import riftworks_weathering
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -27,8 +28,9 @@ try:
     riftworks_vertical_slice.apply_all()
     riftworks_scene_dressing.apply_all()
     riftworks_accessibility_pass.apply_all()
+    riftworks_weathering.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run the scripts in Content/Python in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering order."
     )
