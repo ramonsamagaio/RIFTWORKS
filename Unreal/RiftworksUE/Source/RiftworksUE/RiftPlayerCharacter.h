@@ -164,6 +164,8 @@ protected:
     void ToggleCrouch();
     void DropHeavyPressed();
     void SecureHeavyPressed();
+    void SavePressed();
+    void LoadPressed();
     void UpdateInteractionTrace();
     void UpdateFallbackAnimation();
     void EndMuzzleFlash();
