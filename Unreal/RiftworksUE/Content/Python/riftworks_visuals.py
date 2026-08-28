@@ -24,8 +24,36 @@ def _constant(material, value: float, x: int, y: int):
     return node
 
 
+def _procedural_variation(material, base, rough, amount: float):
+    """Cheap world-space breakup for placeholder geometry. Fails soft if an expression changes in UE 5.8."""
+    if amount <= 0.0:
+        return base, rough
+    try:
+        world = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionWorldPosition, -860, -220)
+        noise = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionNoise, -620, -220)
+        rw.safe_set(noise, "scale", 0.0065)
+        rw.safe_set(noise, "quality", 1)
+        rw.safe_set(noise, "levels", 3)
+        rw.safe_set(noise, "output_min", max(0.40, 1.0 - amount))
+        rw.safe_set(noise, "output_max", 1.0 + amount * 0.55)
+        unreal.MaterialEditingLibrary.connect_material_expressions(world, "", noise, "Position")
+
+        color_mul = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionMultiply, -250, -65)
+        unreal.MaterialEditingLibrary.connect_material_expressions(base, "", color_mul, "A")
+        unreal.MaterialEditingLibrary.connect_material_expressions(noise, "", color_mul, "B")
+
+        rough_mul = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionMultiply, -250, 130)
+        unreal.MaterialEditingLibrary.connect_material_expressions(rough, "", rough_mul, "A")
+        unreal.MaterialEditingLibrary.connect_material_expressions(noise, "", rough_mul, "B")
+        return color_mul, rough_mul
+    except Exception as exc:
+        rw.warn(f"Procedural material breakup skipped: {exc}")
+        return base, rough
+
+
 def create_surface_material(name: str, color: tuple[float, float, float], roughness: float = 0.8,
-                            metallic: float = 0.0, emissive: tuple[float, float, float] | None = None):
+                            metallic: float = 0.0, emissive: tuple[float, float, float] | None = None,
+                            variation: float = 0.0):
     path = f"{MAT_WORLD_DIR}/{name}"
     if rw.asset_library.does_asset_exist(path):
         return rw.asset_library.load_asset(path)
@@ -37,8 +65,9 @@ def create_surface_material(name: str, color: tuple[float, float, float], roughn
     base = _constant3(material, unreal.LinearColor(color[0], color[1], color[2], 1.0), -520, -40)
     rough = _constant(material, roughness, -520, 130)
     metal = _constant(material, metallic, -520, 230)
-    unreal.MaterialEditingLibrary.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    unreal.MaterialEditingLibrary.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    varied_base, varied_rough = _procedural_variation(material, base, rough, variation)
+    unreal.MaterialEditingLibrary.connect_material_property(varied_base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    unreal.MaterialEditingLibrary.connect_material_property(varied_rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
     unreal.MaterialEditingLibrary.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
 
     if emissive:
@@ -54,33 +83,34 @@ def ensure_material_library() -> dict[str, object]:
     _ensure_dir(MAT_WORLD_DIR)
     _ensure_dir(MAT_GAMEPLAY_DIR)
 
+    # key: name, base color, roughness, metallic, emissive, procedural breakup
     specs = {
-        "ground": ("M_Ground_MossDark", (0.045, 0.052, 0.036), 0.94, 0.0, None),
-        "asphalt": ("M_Asphalt_WetNight", (0.020, 0.027, 0.034), 0.46, 0.0, None),
-        "concrete": ("M_Concrete_ColdDirty", (0.105, 0.115, 0.105), 0.86, 0.0, None),
-        "concrete_dark": ("M_Concrete_Deep", (0.050, 0.058, 0.062), 0.92, 0.0, None),
-        "metal": ("M_Metal_Industrial", (0.055, 0.070, 0.075), 0.48, 0.62, None),
-        "rust": ("M_Metal_Rust", (0.175, 0.064, 0.026), 0.78, 0.18, None),
-        "glass": ("M_Glass_BlackBlue", (0.008, 0.022, 0.035), 0.14, 0.05, None),
-        "trunk": ("M_Wood_Charred", (0.075, 0.050, 0.033), 0.96, 0.0, None),
-        "foliage": ("M_Foliage_Night", (0.025, 0.072, 0.040), 0.94, 0.0, None),
-        "road_white": ("M_RoadMark_White", (0.39, 0.40, 0.35), 0.70, 0.0, None),
-        "road_yellow": ("M_RoadMark_Yellow", (0.48, 0.31, 0.055), 0.72, 0.0, None),
-        "hazard": ("M_Hazard_Amber", (0.56, 0.20, 0.025), 0.58, 0.08, None),
-        "lamp": ("M_Lamp_AmberGlow", (0.38, 0.19, 0.055), 0.32, 0.0, (5.2, 2.2, 0.55)),
-        "emergency": ("M_Emergency_RedGlow", (0.24, 0.018, 0.012), 0.36, 0.0, (5.5, 0.18, 0.08)),
-        "breach": ("M_Breach_VioletGlow", (0.055, 0.018, 0.12), 0.28, 0.22, (1.5, 0.24, 6.5)),
-        "breach_dark": ("M_Breach_BlackStone", (0.026, 0.016, 0.041), 0.58, 0.18, None),
-        "rubber": ("M_Rubber_Dark", (0.014, 0.016, 0.017), 0.93, 0.0, None),
-        "assembly": ("M_Assembly_Steel", (0.075, 0.105, 0.110), 0.55, 0.66, None),
-        "assembly_motor": ("M_Assembly_Motor", (0.26, 0.085, 0.018), 0.53, 0.48, None),
-        "salvage": ("M_Salvage_Utility", (0.115, 0.125, 0.105), 0.70, 0.34, None),
-        "colossus": ("M_Colossus_Graphite", (0.033, 0.025, 0.052), 0.48, 0.22, None),
+        "ground": ("M_Ground_MossDark", (0.045, 0.052, 0.036), 0.94, 0.0, None, 0.24),
+        "asphalt": ("M_Asphalt_WetNight", (0.020, 0.027, 0.034), 0.34, 0.0, None, 0.19),
+        "concrete": ("M_Concrete_ColdDirty", (0.105, 0.115, 0.105), 0.86, 0.0, None, 0.18),
+        "concrete_dark": ("M_Concrete_Deep", (0.050, 0.058, 0.062), 0.90, 0.0, None, 0.21),
+        "metal": ("M_Metal_Industrial", (0.055, 0.070, 0.075), 0.48, 0.62, None, 0.08),
+        "rust": ("M_Metal_Rust", (0.175, 0.064, 0.026), 0.78, 0.18, None, 0.28),
+        "glass": ("M_Glass_BlackBlue", (0.008, 0.022, 0.035), 0.14, 0.05, None, 0.03),
+        "trunk": ("M_Wood_Charred", (0.075, 0.050, 0.033), 0.96, 0.0, None, 0.23),
+        "foliage": ("M_Foliage_Night", (0.025, 0.072, 0.040), 0.94, 0.0, None, 0.16),
+        "road_white": ("M_RoadMark_White", (0.39, 0.40, 0.35), 0.70, 0.0, None, 0.10),
+        "road_yellow": ("M_RoadMark_Yellow", (0.48, 0.31, 0.055), 0.72, 0.0, None, 0.10),
+        "hazard": ("M_Hazard_Amber", (0.56, 0.20, 0.025), 0.58, 0.08, None, 0.08),
+        "lamp": ("M_Lamp_AmberGlow", (0.38, 0.19, 0.055), 0.32, 0.0, (5.2, 2.2, 0.55), 0.0),
+        "emergency": ("M_Emergency_RedGlow", (0.24, 0.018, 0.012), 0.36, 0.0, (5.5, 0.18, 0.08), 0.0),
+        "breach": ("M_Breach_VioletGlow", (0.055, 0.018, 0.12), 0.28, 0.22, (1.5, 0.24, 6.5), 0.08),
+        "breach_dark": ("M_Breach_BlackStone", (0.026, 0.016, 0.041), 0.58, 0.18, None, 0.26),
+        "rubber": ("M_Rubber_Dark", (0.014, 0.016, 0.017), 0.93, 0.0, None, 0.06),
+        "assembly": ("M_Assembly_Steel", (0.075, 0.105, 0.110), 0.55, 0.66, None, 0.07),
+        "assembly_motor": ("M_Assembly_Motor", (0.26, 0.085, 0.018), 0.53, 0.48, None, 0.10),
+        "salvage": ("M_Salvage_Utility", (0.115, 0.125, 0.105), 0.70, 0.34, None, 0.12),
+        "colossus": ("M_Colossus_Graphite", (0.033, 0.025, 0.052), 0.48, 0.22, None, 0.14),
     }
 
     result = {}
-    for key, (name, color, roughness, metallic, emissive) in specs.items():
-        result[key] = create_surface_material(name, color, roughness, metallic, emissive)
+    for key, (name, color, roughness, metallic, emissive, variation) in specs.items():
+        result[key] = create_surface_material(name, color, roughness, metallic, emissive, variation)
     rw.log(f"Visual material library ready: {len(result)} materials")
     return result
 
