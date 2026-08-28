@@ -33,7 +33,6 @@ func pickup_heavy(prop: SalvageProp) -> bool:
         return false
     carried = prop
     carried.claim_persisted_transient()
-    # Detach cargo from a streamed chunk so chunk unloading cannot destroy what is in the player's hands.
     carried.reparent(self, true)
     carried.freeze = true
     carried.linear_velocity = Vector3.ZERO
@@ -62,13 +61,23 @@ func deposit_heavy() -> void:
     if not is_instance_valid(carried) or not _near_safe_base():
         _message("Heavy components can only be secured at your base/shelter")
         return
-    player.add_component(carried.item_id, carried.amount)
+    var base_system := _base_system()
+    if not is_instance_valid(base_system):
+        _message("No active base storage controller")
+        return
+    base_system.store_component(carried.item_id, carried.amount)
     carried.mark_persisted_removed()
     var secured_name := carried.display_name
     carried.queue_free()
     carried = null
     player.set_meta("carrying_heavy", false)
-    _message("%s secured. Its original world spawn is now permanently consumed." % secured_name)
+    _message("%s secured into BASE STORAGE. SHIFT+C near beacon withdraws it." % secured_name)
+
+func _base_system() -> BaseSystem:
+    var systems: Array[Node] = get_tree().get_nodes_in_group("base_system")
+    if systems.is_empty():
+        return null
+    return systems[0] as BaseSystem
 
 func _near_safe_base() -> bool:
     if player.global_position.distance_to(Vector3(0,0,38)) <= 13.0:
