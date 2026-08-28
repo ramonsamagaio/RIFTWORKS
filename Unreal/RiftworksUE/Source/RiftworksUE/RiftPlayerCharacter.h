@@ -8,6 +8,7 @@
 class UCameraComponent;
 class USpotLightComponent;
 class UPointLightComponent;
+class UAnimSequenceBase;
 class ARiftSalvageActor;
 class ARiftBaseBeacon;
 
@@ -88,6 +89,24 @@ public:
     UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Interaction")
     FText CurrentInteractionText;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    bool bUseSingleNodeAnimationFallback = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> IdleAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> WalkAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> RunAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> CrouchAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> PistolShootAnimation;
+
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Lighting")
     void SetFlashlightEnabled(bool bEnabled);
 
@@ -146,7 +165,12 @@ protected:
     void DropHeavyPressed();
     void SecureHeavyPressed();
     void UpdateInteractionTrace();
+    void UpdateFallbackAnimation();
     void EndMuzzleFlash();
+    void EndAttackAnimation();
 
+    bool bAttackAnimationLocked = false;
+    TObjectPtr<UAnimSequenceBase> CurrentFallbackAnimation;
     FTimerHandle MuzzleFlashTimer;
+    FTimerHandle AttackAnimationTimer;
 };
