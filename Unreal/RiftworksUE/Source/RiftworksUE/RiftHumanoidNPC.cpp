@@ -5,6 +5,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/PathFollowingComponent.h"
@@ -45,16 +46,17 @@ ARiftHumanoidNPC::ARiftHumanoidNPC()
     WeaponMuzzleLight->SetupAttachment(GetMesh());
     WeaponMuzzleLight->SetRelativeLocation(FVector(38.0f, 0.0f, 120.0f));
     WeaponMuzzleLight->IntensityUnits = ELightUnits::Lumens;
-    WeaponMuzzleLight->Intensity = 0.0f;
-    WeaponMuzzleLight->AttenuationRadius = 700.0f;
-    WeaponMuzzleLight->LightColor = FColor(255, 164, 77);
-    WeaponMuzzleLight->SourceRadius = 6.0f;
-    WeaponMuzzleLight->VolumetricScatteringIntensity = 3.0f;
+    WeaponMuzzleLight->SetIntensity(0.0f);
+    WeaponMuzzleLight->SetAttenuationRadius(600.0f);
+    WeaponMuzzleLight->SetLightColor(FColor(255, 164, 77));
+    WeaponMuzzleLight->SetSourceRadius(4.0f);
+    WeaponMuzzleLight->SetVolumetricScatteringIntensity(0.10f);
     WeaponMuzzleLight->CastShadows = true;
 
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 420.0f, 0.0f);
+    GetCharacterMovement()->bRunPhysicsWithNoController = true;
     bUseControllerRotationYaw = false;
 }
 
@@ -65,6 +67,11 @@ void ARiftHumanoidNPC::BeginPlay()
     PlayerTarget = Cast<ARiftPlayerCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
     Perception->OnTargetPerceptionUpdated.AddDynamic(this, &ARiftHumanoidNPC::OnTargetPerceptionUpdated);
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    GetCharacterMovement()->bRunPhysicsWithNoController = true;
+    if (GetMesh())
+    {
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+    }
     PickPatrolPoint();
 }
 
@@ -112,10 +119,6 @@ void ARiftHumanoidNPC::AlertToLocation(FVector Location)
 void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
 {
     AAIController* AI = Cast<AAIController>(GetController());
-    if (!AI)
-    {
-        return;
-    }
 
     if (!PlayerTarget)
     {
@@ -125,7 +128,10 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
     if (PlayerTarget)
     {
         const float Distance = FVector::Dist(GetActorLocation(), PlayerTarget->GetActorLocation());
-        if (!bAlerted && PlayerTarget->bFlashlightOn && Distance < 4400.0f && AI->LineOfSightTo(PlayerTarget))
+        const FVector ToPlayer = (PlayerTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+        const bool bHasLineOfSight = AI ? AI->LineOfSightTo(PlayerTarget) : true;
+
+        if (!bAlerted && PlayerTarget->bFlashlightOn && Distance < 4400.0f && bHasLineOfSight)
         {
             AlertToLocation(PlayerTarget->GetActorLocation());
         }
@@ -133,9 +139,12 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
         if (bAlerted)
         {
             InvestigationLocation = PlayerTarget->GetActorLocation();
-            if (Distance <= FireRange && AI->LineOfSightTo(PlayerTarget))
+            if (Distance <= FireRange && bHasLineOfSight)
             {
-                AI->StopMovement();
+                if (AI)
+                {
+                    AI->StopMovement();
+                }
                 const FRotator Look = (PlayerTarget->GetActorLocation() - GetActorLocation()).Rotation();
                 SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, Look.Yaw, 0.0f), DeltaSeconds, 7.0f));
                 if (FireCooldown <= 0.0f)
@@ -145,7 +154,17 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
             }
             else
             {
-                AI->MoveToActor(PlayerTarget, 850.0f, true, true, true, nullptr, true);
+                bool bPathing = false;
+                if (AI)
+                {
+                    const EPathFollowingRequestResult::Type Result = AI->MoveToActor(PlayerTarget, 850.0f, true, true, true, nullptr, true);
+                    bPathing = Result != EPathFollowingRequestResult::Failed;
+                }
+                // Runtime-generated buildings/NavMesh can take a moment to catch up. Never let the NPC freeze.
+                if (!bPathing || GetVelocity().Size2D() < 8.0f)
+                {
+                    AddMovementInput(ToPlayer, 1.0f);
+                }
             }
             return;
         }
@@ -153,7 +172,17 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
 
     if (!InvestigationLocation.IsNearlyZero())
     {
-        AI->MoveToLocation(InvestigationLocation, 120.0f, true, true, true, false, nullptr, true);
+        const FVector Direction = (InvestigationLocation - GetActorLocation()).GetSafeNormal2D();
+        bool bPathing = false;
+        if (AI)
+        {
+            const EPathFollowingRequestResult::Type Result = AI->MoveToLocation(InvestigationLocation, 120.0f, true, true, true, false, nullptr, true);
+            bPathing = Result != EPathFollowingRequestResult::Failed;
+        }
+        if (!bPathing || GetVelocity().Size2D() < 5.0f)
+        {
+            AddMovementInput(Direction, 0.75f);
+        }
         if (FVector::DistSquared2D(GetActorLocation(), InvestigationLocation) < FMath::Square(180.0f))
         {
             InvestigationLocation = FVector::ZeroVector;
@@ -162,7 +191,21 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
         return;
     }
 
-    if (PatrolCooldown <= 0.0f && AI->GetMoveStatus() != EPathFollowingStatus::Moving)
+    if (!PatrolTarget.IsNearlyZero())
+    {
+        const float DistSq = FVector::DistSquared2D(GetActorLocation(), PatrolTarget);
+        if (DistSq < FMath::Square(120.0f))
+        {
+            PatrolTarget = FVector::ZeroVector;
+            PatrolCooldown = FMath::FRandRange(1.5f, 3.5f);
+        }
+        else if (!AI || AI->GetMoveStatus() != EPathFollowingStatus::Moving || GetVelocity().Size2D() < 5.0f)
+        {
+            AddMovementInput((PatrolTarget - GetActorLocation()).GetSafeNormal2D(), 0.55f);
+        }
+    }
+
+    if (PatrolCooldown <= 0.0f && PatrolTarget.IsNearlyZero() && (!AI || AI->GetMoveStatus() != EPathFollowingStatus::Moving))
     {
         PickPatrolPoint();
     }
@@ -172,18 +215,29 @@ void ARiftHumanoidNPC::PickPatrolPoint()
 {
     AAIController* AI = Cast<AAIController>(GetController());
     UNavigationSystemV1* Nav = UNavigationSystemV1::GetCurrent(GetWorld());
-    if (!AI || !Nav)
-    {
-        return;
-    }
 
     FNavLocation Point;
-    if (Nav->GetRandomReachablePointInRadius(PatrolOrigin, PatrolRadius, Point))
+    bool bFoundNavPoint = false;
+    if (Nav)
     {
-        GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-        AI->MoveToLocation(Point.Location, 90.0f);
-        PatrolCooldown = FMath::FRandRange(4.0f, 8.0f);
+        bFoundNavPoint = Nav->GetRandomReachablePointInRadius(PatrolOrigin, PatrolRadius, Point);
     }
+
+    if (bFoundNavPoint)
+    {
+        PatrolTarget = Point.Location;
+        if (AI)
+        {
+            AI->MoveToLocation(PatrolTarget, 90.0f);
+        }
+    }
+    else
+    {
+        const FVector2D Circle = FMath::RandPointInCircle(PatrolRadius);
+        PatrolTarget = PatrolOrigin + FVector(Circle.X, Circle.Y, 0.0f);
+    }
+    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    PatrolCooldown = FMath::FRandRange(4.0f, 8.0f);
 }
 
 void ARiftHumanoidNPC::FireAtPlayer()
@@ -201,24 +255,35 @@ void ARiftHumanoidNPC::FireAtPlayer()
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftNPCFire), true, this);
     GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Direction * FireRange, ECC_Visibility, Params);
 
-    WeaponMuzzleLight->SetIntensity(4800.0f);
+    WeaponMuzzleLight->SetIntensity(2500.0f);
     GetWorldTimerManager().ClearTimer(MuzzleTimer);
-    GetWorldTimerManager().SetTimer(MuzzleTimer, this, &ARiftHumanoidNPC::EndMuzzleFlash, 0.06f, false);
+    GetWorldTimerManager().SetTimer(MuzzleTimer, this, &ARiftHumanoidNPC::EndMuzzleFlash, 0.045f, false);
 
     if (Hit.GetActor() == PlayerTarget)
     {
         UGameplayStatics::ApplyPointDamage(PlayerTarget, RangedDamage, Direction, Hit, GetController(), this, nullptr);
     }
 
-    if (bUseSingleNodeAnimationFallback && PistolShootAnimation)
+    if (PistolShootAnimation)
     {
-        bAttackAnimationLocked = true;
-        CurrentFallbackAnimation = PistolShootAnimation;
-        GetMesh()->PlayAnimation(PistolShootAnimation, false);
-        GetWorldTimerManager().SetTimer(AttackAnimTimer, this, &ARiftHumanoidNPC::EndAttackAnimation, FMath::Max(0.15f, PistolShootAnimation->GetPlayLength()), false);
+        PlayOneShot(PistolShootAnimation);
     }
 
     BP_OnRangedAttack(PlayerTarget);
+}
+
+void ARiftHumanoidNPC::PlayOneShot(UAnimSequenceBase* Animation, float MinimumLock)
+{
+    if (!bUseSingleNodeAnimationFallback || !Animation || !GetMesh())
+    {
+        return;
+    }
+    bAttackAnimationLocked = true;
+    CurrentFallbackAnimation = Animation;
+    GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+    GetMesh()->PlayAnimation(Animation, false);
+    GetWorldTimerManager().ClearTimer(AttackAnimTimer);
+    GetWorldTimerManager().SetTimer(AttackAnimTimer, this, &ARiftHumanoidNPC::EndAttackAnimation, FMath::Max(MinimumLock, Animation->GetPlayLength()), false);
 }
 
 void ARiftHumanoidNPC::EndMuzzleFlash()
@@ -250,42 +315,54 @@ void ARiftHumanoidNPC::UpdateFallbackAnimation()
     }
     else if (Speed < 250.0f)
     {
-        Desired = WalkAnimation.Get();
+        Desired = WalkAnimation ? WalkAnimation.Get() : RunAnimation.Get();
     }
     else
     {
-        Desired = RunAnimation.Get();
+        Desired = RunAnimation ? RunAnimation.Get() : WalkAnimation.Get();
     }
 
     if (Desired && Desired != CurrentFallbackAnimation)
     {
         CurrentFallbackAnimation = Desired;
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->PlayAnimation(Desired, true);
     }
 }
 
 float ARiftHumanoidNPC::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-    if (bDead)
+    if (bDead || DamageAmount <= 0.0f)
     {
         return 0.0f;
     }
 
-    const float Applied = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-    Health -= DamageAmount;
+    Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+    Health = FMath::Max(0.0f, Health - DamageAmount);
+    BP_OnHit(Health, DamageAmount);
+
     if (DamageCauser)
     {
         AlertToLocation(DamageCauser->GetActorLocation());
     }
+
     if (Health <= 0.0f)
     {
         Die();
     }
-    return Applied > 0.0f ? Applied : DamageAmount;
+    else if (HitAnimation)
+    {
+        PlayOneShot(HitAnimation, 0.18f);
+    }
+    return DamageAmount;
 }
 
 void ARiftHumanoidNPC::Die()
 {
+    if (bDead)
+    {
+        return;
+    }
     bDead = true;
     if (AAIController* AI = Cast<AAIController>(GetController()))
     {
@@ -293,10 +370,16 @@ void ARiftHumanoidNPC::Die()
     }
     GetCharacterMovement()->DisableMovement();
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    if (bUseSingleNodeAnimationFallback && DeathAnimation)
+
+    if (DeathAnimation && GetMesh())
     {
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->PlayAnimation(DeathAnimation, false);
     }
+    else
+    {
+        SetActorRotation(GetActorRotation() + FRotator(0.0f, 0.0f, 88.0f));
+    }
     BP_OnKilled();
-    SetLifeSpan(8.0f);
+    SetLifeSpan(9.0f);
 }
