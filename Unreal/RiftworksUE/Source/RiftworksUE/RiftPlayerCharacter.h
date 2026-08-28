@@ -8,6 +8,8 @@
 class UCameraComponent;
 class USpotLightComponent;
 class UPointLightComponent;
+class ARiftSalvageActor;
+class ARiftBaseBeacon;
 
 UINTERFACE(BlueprintType)
 class RIFTWORKSUE_API URiftInteractable : public UInterface
@@ -76,6 +78,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Inventory")
     TMap<FName, int32> Components;
 
+    UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Logistics")
+    TObjectPtr<ARiftSalvageActor> CarriedSalvage;
+
     UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Interaction")
     FText CurrentInteractionText;
 
@@ -91,6 +96,18 @@ public:
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Inventory")
     bool ConsumeComponentItem(FName ItemId, int32 Amount = 1);
 
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Logistics")
+    bool TryCarrySalvage(ARiftSalvageActor* Salvage);
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Logistics")
+    void DropHeavySalvage();
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Logistics")
+    bool SecureHeavySalvage();
+
+    UFUNCTION(BlueprintPure, Category="RIFTWORKS|Base")
+    ARiftBaseBeacon* FindNearbyBase(float Radius = 1400.0f) const;
+
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnInventoryChanged();
 
@@ -99,6 +116,9 @@ public:
 
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnWeaponFired(const FHitResult& Hit);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnCarriedSalvageChanged(ARiftSalvageActor* NewCarriedSalvage);
 
 protected:
     virtual void BeginPlay() override;
@@ -113,6 +133,8 @@ protected:
     void InteractPressed();
     void FirePressed();
     void ToggleCrouch();
+    void DropHeavyPressed();
+    void SecureHeavyPressed();
     void UpdateInteractionTrace();
     void EndMuzzleFlash();
 
