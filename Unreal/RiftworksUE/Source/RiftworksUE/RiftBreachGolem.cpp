@@ -9,7 +9,9 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectGlobals.h"
 
 ARiftBreachGolem::ARiftBreachGolem()
 {
@@ -34,10 +36,10 @@ ARiftBreachGolem::ARiftBreachGolem()
     CoreLight->SetupAttachment(Torso);
     CoreLight->SetRelativeLocation(FVector(-55.0f, 0.0f, 10.0f));
     CoreLight->SetIntensityUnits(ELightUnits::Lumens);
-    CoreLight->SetIntensity(1900.0f);
-    CoreLight->SetAttenuationRadius(800.0f);
+    CoreLight->SetIntensity(1450.0f);
+    CoreLight->SetAttenuationRadius(720.0f);
     CoreLight->SetLightColor(FLinearColor(0.57f, 0.39f, 0.88f));
-    CoreLight->VolumetricScatteringIntensity = 2.0f;
+    CoreLight->VolumetricScatteringIntensity = 0.12f;
     CoreLight->CastShadows = true;
 }
 
@@ -61,6 +63,27 @@ void ARiftBreachGolem::BeginPlay()
     Super::BeginPlay();
     TargetPlayer = Cast<ARiftPlayerCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+
+    // Low-poly stays cheap, but it should read as Breach machinery rather than Engine debug cubes.
+    UMaterialInterface* Stone = Cast<UMaterialInterface>(StaticLoadObject(
+        UMaterialInterface::StaticClass(), nullptr,
+        TEXT("/Game/Riftworks/Materials/World/M_Breach_BlackStone.M_Breach_BlackStone")));
+    UMaterialInterface* Accent = Cast<UMaterialInterface>(StaticLoadObject(
+        UMaterialInterface::StaticClass(), nullptr,
+        TEXT("/Game/Riftworks/Materials/World/M_Assembly_Motor.M_Assembly_Motor")));
+
+    if (Stone)
+    {
+        Torso->SetMaterial(0, Stone);
+        LeftArm->SetMaterial(0, Stone);
+        RightArm->SetMaterial(0, Stone);
+        LeftLeg->SetMaterial(0, Stone);
+        RightLeg->SetMaterial(0, Stone);
+    }
+    if (Head)
+    {
+        Head->SetMaterial(0, Accent ? Accent : Stone);
+    }
 }
 
 void ARiftBreachGolem::Tick(float DeltaSeconds)
@@ -83,7 +106,16 @@ void ARiftBreachGolem::Tick(float DeltaSeconds)
     {
         if (Distance > AttackRange)
         {
-            AI->MoveToActor(TargetPlayer, AttackRange * 0.82f, true, true, true, nullptr, true);
+            const EPathFollowingRequestResult::Type MoveResult = AI->MoveToActor(TargetPlayer, AttackRange * 0.82f, true, true, true, nullptr, true);
+            if (MoveResult == EPathFollowingRequestResult::Failed)
+            {
+                const FVector Direction = (TargetPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+                GetCharacterMovement()->Velocity = FVector(Direction.X * MoveSpeed, Direction.Y * MoveSpeed, GetCharacterMovement()->Velocity.Z);
+                if (!Direction.IsNearlyZero())
+                {
+                    SetActorRotation(FMath::RInterpTo(GetActorRotation(), Direction.Rotation(), DeltaSeconds, 3.0f));
+                }
+            }
         }
         else
         {
@@ -114,7 +146,7 @@ void ARiftBreachGolem::Tick(float DeltaSeconds)
 
     if (CoreLight)
     {
-        CoreLight->SetIntensity(1700.0f + FMath::Sin(GetWorld()->GetTimeSeconds() * 4.0f) * 350.0f);
+        CoreLight->SetIntensity(1250.0f + FMath::Sin(GetWorld()->GetTimeSeconds() * 4.0f) * 210.0f);
     }
 }
 
