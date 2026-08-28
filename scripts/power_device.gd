@@ -15,6 +15,7 @@ var powered := false
 var grid: PowerGridSystem
 var status_light: OmniLight3D
 var work_light: SpotLight3D
+var machine_audio: AudioStreamPlayer3D
 
 func configure(p_kind: Kind, p_name: String, value_a: float = 0.0, value_b: float = 0.0) -> void:
     kind = p_kind
@@ -33,6 +34,8 @@ func _ready() -> void:
     add_to_group("logic_receivers")
     _build_collision()
     _build_visual()
+    if kind == Kind.GENERATOR:
+        _build_generator_audio()
     _refresh_visual_state()
 
 func _build_collision() -> void:
@@ -108,6 +111,38 @@ func _build_visual() -> void:
     status_light.light_volumetric_fog_energy = 0.0
     root.add_child(status_light)
 
+func _build_generator_audio() -> void:
+    var wav := AudioStreamWAV.new()
+    wav.format = AudioStreamWAV.FORMAT_16_BITS
+    wav.mix_rate = 22050
+    wav.stereo = false
+    var duration := 0.72
+    var sample_count := int(float(wav.mix_rate) * duration)
+    var data := PackedByteArray()
+    data.resize(sample_count * 2)
+    var noise_rng := RandomNumberGenerator.new()
+    noise_rng.seed = 551909
+    for i in range(sample_count):
+        var t := float(i) / float(wav.mix_rate)
+        var engine := sin(TAU * 54.0 * t) * 0.24
+        engine += sin(TAU * 108.0 * t + 0.7) * 0.10
+        engine += sin(TAU * 162.0 * t + 1.4) * 0.045
+        var mechanical := sin(TAU * 9.0 * t) * sin(TAU * 217.0 * t) * 0.025
+        var noise := noise_rng.randf_range(-1.0,1.0) * 0.025
+        var sample := clampf(engine + mechanical + noise, -1.0, 1.0)
+        data.encode_s16(i * 2, int(sample * 32767.0))
+    wav.data = data
+    wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+    wav.loop_begin = 0
+    wav.loop_end = sample_count
+
+    machine_audio = AudioStreamPlayer3D.new()
+    machine_audio.stream = wav
+    machine_audio.volume_db = -5.0
+    machine_audio.max_distance = 58.0
+    machine_audio.unit_size = 5.5
+    add_child(machine_audio)
+
 func _refresh_visual_state() -> void:
     if not is_instance_valid(status_light):
         return
@@ -122,6 +157,11 @@ func _refresh_visual_state() -> void:
         status_light.light_energy = 0.75
     if is_instance_valid(work_light):
         work_light.visible = enabled and powered
+    if is_instance_valid(machine_audio):
+        if enabled and not machine_audio.playing:
+            machine_audio.play()
+        elif not enabled and machine_audio.playing:
+            machine_audio.stop()
 
 func set_powered(value: bool) -> void:
     if powered == value:
