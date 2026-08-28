@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/assembly_system.gd" type="Script" id="2"]
@@ -11,6 +11,8 @@
 [ext_resource path="res://scripts/save_system.gd" type="Script" id="9"]
 [ext_resource path="res://scripts/weather_system.gd" type="Script" id="10"]
 [ext_resource path="res://scripts/carry_system.gd" type="Script" id="11"]
+[ext_resource path="res://scripts/adaptive_hud.gd" type="Script" id="12"]
+[ext_resource path="res://scripts/interaction_highlight.gd" type="Script" id="13"]
 
 [node name="Riftworks" type="Node3D"]
 script = ExtResource("1")
@@ -44,3 +46,9 @@ script = ExtResource("10")
 
 [node name="CarrySystem" type="Node3D" parent="."]
 script = ExtResource("11")
+
+[node name="AdaptiveHUD" type="CanvasLayer" parent="."]
+script = ExtResource("12")
+
+[node name="InteractionHighlight" type="Node" parent="."]
+script = ExtResource("13")
