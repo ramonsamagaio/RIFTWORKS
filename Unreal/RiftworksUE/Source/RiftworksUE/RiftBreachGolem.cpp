@@ -33,10 +33,10 @@ ARiftBreachGolem::ARiftBreachGolem()
     CoreLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("BreachCoreLight"));
     CoreLight->SetupAttachment(Torso);
     CoreLight->SetRelativeLocation(FVector(-55.0f, 0.0f, 10.0f));
-    CoreLight->IntensityUnits = ELightUnits::Lumens;
-    CoreLight->Intensity = 1900.0f;
-    CoreLight->AttenuationRadius = 800.0f;
-    CoreLight->LightColor = FColor(145, 100, 225);
+    CoreLight->SetIntensityUnits(ELightUnits::Lumens);
+    CoreLight->SetIntensity(1900.0f);
+    CoreLight->SetAttenuationRadius(800.0f);
+    CoreLight->SetLightColor(FLinearColor(0.57f, 0.39f, 0.88f));
     CoreLight->VolumetricScatteringIntensity = 2.0f;
     CoreLight->CastShadows = true;
 }
@@ -78,7 +78,7 @@ void ARiftBreachGolem::Tick(float DeltaSeconds)
     }
 
     AAIController* AI = Cast<AAIController>(GetController());
-    const float Distance = TargetPlayer ? FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation()) : BIG_NUMBER;
+    const float Distance = TargetPlayer ? FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation()) : TNumericLimits<float>::Max();
     if (AI && TargetPlayer && Distance <= DetectionRange)
     {
         if (Distance > AttackRange)
