@@ -1,5 +1,6 @@
 #include "RiftPlayerCharacter.h"
 #include "RiftGameplayActors.h"
+#include "RiftPersistence.h"
 
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
@@ -104,6 +105,8 @@ void ARiftPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &ARiftPlayerCharacter::ToggleCrouch);
     PlayerInputComponent->BindAction(TEXT("DropHeavy"), IE_Pressed, this, &ARiftPlayerCharacter::DropHeavyPressed);
     PlayerInputComponent->BindAction(TEXT("SecureHeavy"), IE_Pressed, this, &ARiftPlayerCharacter::SecureHeavyPressed);
+    PlayerInputComponent->BindAction(TEXT("SaveGame"), IE_Pressed, this, &ARiftPlayerCharacter::SavePressed);
+    PlayerInputComponent->BindAction(TEXT("LoadGame"), IE_Pressed, this, &ARiftPlayerCharacter::LoadPressed);
 }
 
 void ARiftPlayerCharacter::MoveForward(float Value)
@@ -307,6 +310,28 @@ void ARiftPlayerCharacter::SecureHeavyPressed()
     SecureHeavySalvage();
 }
 
+void ARiftPlayerCharacter::SavePressed()
+{
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (URiftPersistenceSubsystem* Persistence = GameInstance->GetSubsystem<URiftPersistenceSubsystem>())
+        {
+            Persistence->SaveRiftGame(this);
+        }
+    }
+}
+
+void ARiftPlayerCharacter::LoadPressed()
+{
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (URiftPersistenceSubsystem* Persistence = GameInstance->GetSubsystem<URiftPersistenceSubsystem>())
+        {
+            Persistence->LoadRiftGame(this);
+        }
+    }
+}
+
 bool ARiftPlayerCharacter::TryCarrySalvage(ARiftSalvageActor* Salvage)
 {
     if (!Salvage || !Salvage->bHeavy || CarriedSalvage)
@@ -352,6 +377,13 @@ bool ARiftPlayerCharacter::SecureHeavySalvage()
     if (!Base)
     {
         return false;
+    }
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (URiftPersistenceSubsystem* Persistence = GameInstance->GetSubsystem<URiftPersistenceSubsystem>())
+        {
+            Persistence->MarkSalvageRemoved(CarriedSalvage->PersistentId);
+        }
     }
     Base->StoreItem(CarriedSalvage->ItemId, CarriedSalvage->Amount);
     CarriedSalvage->Destroy();
