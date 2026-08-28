@@ -92,28 +92,28 @@ void ARiftEngineeringJoint::ConfigureConstraint()
     }
 
     Constraint->SetAngularVelocityDriveTwistAndSwing(false, false);
-    Constraint->SetAngularOrientationDrive(false, false);
+    Constraint->SetOrientationDriveTwistAndSwing(false, false);
     Constraint->SetLinearPositionDrive(false, false, false);
     Constraint->SetLinearVelocityDrive(false, false, false);
 
     switch (Mode)
     {
         case ERiftJointMode::Weld:
-            Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Locked, 0.0f);
-            Constraint->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
-            Constraint->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
+            Constraint->SetLinearXLimit(LCM_Locked, 0.0f);
+            Constraint->SetLinearYLimit(LCM_Locked, 0.0f);
+            Constraint->SetLinearZLimit(LCM_Locked, 0.0f);
+            Constraint->SetAngularTwistLimit(ACM_Locked, 0.0f);
+            Constraint->SetAngularSwing1Limit(ACM_Locked, 0.0f);
+            Constraint->SetAngularSwing2Limit(ACM_Locked, 0.0f);
             break;
 
         case ERiftJointMode::Hinge:
-            Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Free, 0.0f);
-            Constraint->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
-            Constraint->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
+            Constraint->SetLinearXLimit(LCM_Locked, 0.0f);
+            Constraint->SetLinearYLimit(LCM_Locked, 0.0f);
+            Constraint->SetLinearZLimit(LCM_Locked, 0.0f);
+            Constraint->SetAngularTwistLimit(ACM_Free, 0.0f);
+            Constraint->SetAngularSwing1Limit(ACM_Locked, 0.0f);
+            Constraint->SetAngularSwing2Limit(ACM_Locked, 0.0f);
             Constraint->SetAngularDriveMode(EAngularDriveMode::TwistAndSwing);
             Constraint->SetAngularVelocityDriveTwistAndSwing(bSignal, false);
             Constraint->SetAngularDriveParams(0.0f, MotorStrength, MotorStrength * 0.02f);
@@ -121,24 +121,24 @@ void ARiftEngineeringJoint::ConfigureConstraint()
             break;
 
         case ERiftJointMode::Slider:
-            Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, SliderTravel);
-            Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Locked, 0.0f);
-            Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Locked, 0.0f);
-            Constraint->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
-            Constraint->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0.0f);
+            Constraint->SetLinearXLimit(LCM_Limited, SliderTravel);
+            Constraint->SetLinearYLimit(LCM_Locked, 0.0f);
+            Constraint->SetLinearZLimit(LCM_Locked, 0.0f);
+            Constraint->SetAngularTwistLimit(ACM_Locked, 0.0f);
+            Constraint->SetAngularSwing1Limit(ACM_Locked, 0.0f);
+            Constraint->SetAngularSwing2Limit(ACM_Locked, 0.0f);
             Constraint->SetLinearPositionDrive(true, false, false);
             Constraint->SetLinearDriveParams(SliderStrength, SliderStrength * 0.12f, 0.0f);
             Constraint->SetLinearPositionTarget(FVector(bSignal ? SliderTravel : -SliderTravel, 0.0f, 0.0f));
             break;
 
         case ERiftJointMode::RopeWinch:
-            Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
-            Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
-            Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
-            Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Free, 0.0f);
-            Constraint->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Free, 0.0f);
-            Constraint->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Free, 0.0f);
+            Constraint->SetLinearXLimit(LCM_Limited, RopeLength);
+            Constraint->SetLinearYLimit(LCM_Limited, RopeLength);
+            Constraint->SetLinearZLimit(LCM_Limited, RopeLength);
+            Constraint->SetAngularTwistLimit(ACM_Free, 0.0f);
+            Constraint->SetAngularSwing1Limit(ACM_Free, 0.0f);
+            Constraint->SetAngularSwing2Limit(ACM_Free, 0.0f);
             break;
     }
 }
@@ -154,9 +154,9 @@ void ARiftEngineeringJoint::Tick(float DeltaSeconds)
     if (Mode == ERiftJointMode::RopeWinch && bSignal)
     {
         RopeLength = FMath::Max(MinimumRopeLength, RopeLength - WinchSpeed * DeltaSeconds);
-        Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
-        Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
-        Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Limited, RopeLength);
+        Constraint->SetLinearXLimit(LCM_Limited, RopeLength);
+        Constraint->SetLinearYLimit(LCM_Limited, RopeLength);
+        Constraint->SetLinearZLimit(LCM_Limited, RopeLength);
     }
     else if (Mode == ERiftJointMode::Hinge)
     {
