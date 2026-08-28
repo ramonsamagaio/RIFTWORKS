@@ -39,7 +39,6 @@ public:
 
     void BuildSurfaceChunk(FIntPoint Key, int32 WorldSeed, float ChunkSize);
 
-    // AActor::SetActorLabel is editor-only. This shim keeps the procedural source valid in game builds too.
     void SetActorLabel(const FString& NewActorLabel, bool bMarkDirty = true)
     {
 #if WITH_EDITOR
@@ -49,6 +48,10 @@ public:
         (void)bMarkDirty;
 #endif
     }
+
+protected:
+    virtual void BeginPlay() override;
+    void ApplyPrototypeMaterials();
 };
 
 UCLASS(Blueprintable)
