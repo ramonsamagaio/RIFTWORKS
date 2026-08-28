@@ -9,8 +9,11 @@ const WORLD_SEED := 731942
 var player: RiftPlayer
 var chunks := {}
 var refresh_timer := 0.0
+var region_noise := FastNoiseLite.new()
 
 func _ready() -> void:
+    region_noise.seed = WORLD_SEED
+    region_noise.frequency = 0.0038
     await get_tree().process_frame
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
     _refresh_chunks()
@@ -45,6 +48,11 @@ func _refresh_chunks() -> void:
 
 func _seed_for(key: Vector2i) -> int:
     return abs(WORLD_SEED ^ (key.x * 92837111) ^ (key.y * 689287499))
+
+func _region_value(key: Vector2i) -> float:
+    var wx := (key.x + 0.5) * CHUNK_SIZE
+    var wz := (key.y + 0.5) * CHUNK_SIZE
+    return (region_noise.get_noise_2d(wx,wz) + 1.0) * 0.5
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.88) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -84,7 +92,8 @@ func _generate_chunk(key: Vector2i) -> Node3D:
 
     var local_rng := RandomNumberGenerator.new()
     local_rng.seed = _seed_for(key)
-    var ground_tint := local_rng.randf_range(-0.008,0.012)
+    var region := _region_value(key)
+    var ground_tint := lerpf(-0.008,0.012,region) + local_rng.randf_range(-0.004,0.004)
     _box(root, Vector3(CHUNK_SIZE*0.5,-0.55,CHUNK_SIZE*0.5), Vector3(CHUNK_SIZE+0.1,1,CHUNK_SIZE+0.1), Color(0.052+ground_tint,0.061+ground_tint,0.068+ground_tint))
 
     var has_x_road := posmod(key.y, 3) == 0
@@ -94,19 +103,27 @@ func _generate_chunk(key: Vector2i) -> Node3D:
     if has_z_road:
         _box(root, Vector3(CHUNK_SIZE*0.5,0.022,CHUNK_SIZE*0.5), Vector3(8,0.05,CHUNK_SIZE), Color("14181d"), false)
 
-    var district_roll := local_rng.randf()
-    if district_roll < 0.48:
-        _generate_sparse_urban(root, local_rng, has_x_road, has_z_road)
-    elif district_roll < 0.72:
-        _generate_industrial(root, local_rng)
+    # Continuous region noise deliberately creates broad transition belts instead of hard biome chunks.
+    if region < 0.34:
+        _generate_woodland(root, local_rng, 1.0)
+    elif region < 0.44:
+        _generate_woodland(root, local_rng, 0.68)
+        _generate_sparse_urban(root, local_rng, has_x_road, has_z_road, 0.32)
+    elif region < 0.62:
+        _generate_woodland(root, local_rng, 0.18)
+        _generate_sparse_urban(root, local_rng, has_x_road, has_z_road, 0.82)
+    elif region < 0.73:
+        _generate_sparse_urban(root, local_rng, has_x_road, has_z_road, 0.55)
+        _generate_industrial(root, local_rng, 0.45)
     else:
-        _generate_woodland(root, local_rng)
+        _generate_industrial(root, local_rng, 1.0)
 
     _spawn_chunk_salvage(root, local_rng)
     return root
 
-func _generate_sparse_urban(root: Node3D, r: RandomNumberGenerator, road_x: bool, road_z: bool) -> void:
-    for i in range(r.randi_range(4,8)):
+func _generate_sparse_urban(root: Node3D, r: RandomNumberGenerator, road_x: bool, road_z: bool, density := 1.0) -> void:
+    var count := maxi(1,roundi(r.randi_range(4,8) * density))
+    for i in range(count):
         var x := r.randf_range(7,57)
         var z := r.randf_range(7,57)
         if road_x and abs(z-32) < 8: continue
@@ -117,8 +134,8 @@ func _generate_sparse_urban(root: Node3D, r: RandomNumberGenerator, road_x: bool
         var tint := r.randf_range(0.0,0.028)
         _box(root, Vector3(x,h*0.5,z), Vector3(w,h,d), Color(0.074+tint,0.079+tint,0.083+tint*0.8))
 
-func _generate_industrial(root: Node3D, r: RandomNumberGenerator) -> void:
-    var count := r.randi_range(2,4)
+func _generate_industrial(root: Node3D, r: RandomNumberGenerator, density := 1.0) -> void:
+    var count := maxi(1,roundi(r.randi_range(2,4) * density))
     for i in range(count):
         var x := r.randf_range(12,52)
         var z := r.randf_range(12,52)
@@ -128,8 +145,9 @@ func _generate_industrial(root: Node3D, r: RandomNumberGenerator) -> void:
         _box(root, Vector3(x,h*0.5,z), Vector3(w,h,d), Color("242a2e"), true, 0.18)
         _box(root, Vector3(x+r.randf_range(-4,4),h+0.6,z+r.randf_range(-4,4)), Vector3(3.2,1.0,2.4), Color("30363a"), true, 0.32)
 
-func _generate_woodland(root: Node3D, r: RandomNumberGenerator) -> void:
-    for i in range(r.randi_range(18,34)):
+func _generate_woodland(root: Node3D, r: RandomNumberGenerator, density := 1.0) -> void:
+    var count := maxi(2,roundi(r.randi_range(18,34) * density))
+    for i in range(count):
         var x := r.randf_range(3,61)
         var z := r.randf_range(3,61)
         _tree(root, Vector3(x,0,z), r.randf_range(0.8,1.45), r)
