@@ -61,6 +61,30 @@ func _build_visual() -> void:
         "fuel":
             _add_box(Vector3.ZERO, Vector3(0.48, 0.72, 0.34), Color("4b3930"), 0.2)
             _add_box(Vector3(0.13, 0.4, 0), Vector3(0.13, 0.09, 0.11), accent, 0.55)
+        "breach_core":
+            var crystal := MeshInstance3D.new()
+            crystal.position.y = 0.06
+            crystal.rotation_degrees = Vector3(0,18,7)
+            var crystal_mesh := CylinderMesh.new()
+            crystal_mesh.top_radius = 0.08
+            crystal_mesh.bottom_radius = 0.34
+            crystal_mesh.height = 0.92
+            crystal_mesh.radial_segments = 6
+            var crystal_mat := _mat(Color("62507d"), 0.16, 0.28)
+            crystal_mat.emission_enabled = true
+            crystal_mat.emission = accent
+            crystal_mat.emission_energy_multiplier = 2.8
+            crystal_mesh.material = crystal_mat
+            crystal.mesh = crystal_mesh
+            add_child(crystal)
+            _add_box(Vector3(0,-0.37,0), Vector3(0.72,0.16,0.72), Color("282b35"), 0.6)
+            var glow := OmniLight3D.new()
+            glow.position = Vector3(0,0.1,0)
+            glow.light_color = accent
+            glow.light_energy = 2.2
+            glow.omni_range = 5.0
+            glow.light_volumetric_fog_energy = 0.8
+            add_child(glow)
         _:
             _add_box(Vector3.ZERO, Vector3(0.52, 0.32, 0.48), accent, 0.45)
 
