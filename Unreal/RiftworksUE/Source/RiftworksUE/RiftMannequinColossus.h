@@ -1,0 +1,45 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "RiftGameplayActors.h"
+#include "RiftMannequinColossus.generated.h"
+
+class UAnimSequenceBase;
+class UBoxComponent;
+
+UCLASS(Blueprintable)
+class RIFTWORKSUE_API ARiftMannequinColossus : public ARiftColossus
+{
+    GENERATED_BODY()
+
+public:
+    ARiftMannequinColossus();
+    virtual void Tick(float DeltaSeconds) override;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Animation")
+    TObjectPtr<UAnimSequenceBase> IdleAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Animation")
+    TObjectPtr<UAnimSequenceBase> WalkAnimation;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="RIFTWORKS|Colossus|Weakpoints")
+    TObjectPtr<UBoxComponent> LegsCollision;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="RIFTWORKS|Colossus|Weakpoints")
+    TObjectPtr<UBoxComponent> TorsoCollision;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="RIFTWORKS|Colossus|Weakpoints")
+    TObjectPtr<UBoxComponent> HeadCollision;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus")
+    float VisualScale = 16.0f;
+
+protected:
+    virtual void BeginPlay() override;
+
+    FVector PrototypeRouteCenter = FVector::ZeroVector;
+    float PrototypeRouteAngle = 0.0f;
+    TObjectPtr<UAnimSequenceBase> CurrentAnimation;
+
+    void UpdatePrototypeAnimation();
+};
