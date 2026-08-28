@@ -2,30 +2,45 @@
 
 Playable prototype for the low-poly night survival / engineering sandbox.
 
+## Locked presentation direction
+- **First-person** is now the permanent gameplay perspective.
+- Desktop launch defaults to **fullscreen** with a 1920x1080 reference viewport and scalable UI.
+- The player uses a shadow-only body so first-person remains clean while still casting a physical shadow in the world.
+- The flashlight is a major visual/gameplay pillar and is mounted slightly off-axis from the camera for a more physical handheld feel.
+
 ## Current slice
-- Third-person placeholder controller (camera remains a prototype decision, not a locked design choice)
-- Permanent-night look, fog and flashlight/battery pressure
-- Procedural-ish modular empty city blockout
-- Underground descent and deep chamber
-- Colossus-scale landmark/enemy placeholder
-- Scavenge interaction and deployable powered floodlights
-- Initial power-grid readout
+- Permanent-night Forward+ lighting stack with premium flashlight/shadows/volumetrics
+- Procedural surface streaming with blended region transitions
+- Procedural underground graph with Breach pockets
+- Empty low-poly urban/industrial/woodland spaces
+- Physical salvage and heavy-object carrying
+- Generator / battery / consumer power-grid prototype
+- Power signature and logic-controlled blackout behavior
+- Functional Assembly System with physics parts and logic-controlled motors
+- Buttons, proximity sensors, lamps and alarms
+- Saveable/rebuildable machine blueprints
+- Breach repulsion engineering
+- Humanoid scavenger threats and lightweight drone enemies
+- Walker Colossus with weakpoints and harvestable engineering resources
+- Base claiming plus save/load
 
 ## Controls
-- WASD / arrow actions: move
-- Mouse: look
+- WASD: move
+- Shift: sprint
+- Space: jump
+- Mouse: first-person look
+- Left Mouse: combat
 - F: flashlight
-- E: scavenge nearby environment (prototype abstraction)
-- B: spend 5 scrap to deploy a floodlight
+- R: use flashlight battery cell
+- E: interact / scavenge
+- B: build floodlight
+- G: build generator
+- T: build battery
+- 1-5 / X / O / P: Functional Assembly prototype controls
+- 6-9 / K: logic prototype controls
+- C: claim base
+- F5 / F9: save / load prototype state
 - Esc: release/capture mouse
 
-## Next vertical-slice targets
-1. Real interactable salvage props instead of abstract E-scavenge.
-2. Generator -> cable -> battery -> consumer power graph.
-3. Snap-based functional assembly: platform, wheel, motor, hinge, button, sensor.
-4. Surface/underground procedural chunk graph.
-5. Humanoid scavenger AI using one reusable rig.
-6. First actual Colossus behavior and harvestable component.
-7. Base persistence and blueprint serialization.
-
-The north star is capability progression: the player should become stronger primarily by building better systems, not by accumulating stat bonuses.
+## North star
+The player should become stronger primarily by building better systems, not by accumulating stat bonuses. The game should keep asking: **what can I invent with what I found?**
