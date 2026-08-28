@@ -10,6 +10,15 @@ STATUS = ROOT / "tools" / "gdd_status.json"
 status = json.loads(STATUS.read_text(encoding="utf-8"))
 text = GDD.read_text(encoding="utf-8")
 
+if status.get("perspective") == "first_person":
+    text = text.replace(
+        "- [x] Basic third-person placeholder movement/camera.",
+        "- [x] First-person movement/camera foundation."
+    ).replace(
+        "- [ ] Basic third-person placeholder movement/camera.",
+        "- [x] First-person movement/camera foundation."
+    )
+
 for label, done in status.get("checklist", {}).items():
     if not done:
         continue
