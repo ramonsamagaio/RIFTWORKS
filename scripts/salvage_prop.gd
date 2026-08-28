@@ -6,13 +6,15 @@ var display_name := "Salvage"
 var amount := 1
 var mass_class := 0
 var accent := Color("8b949c")
+var persistent_id := ""
 
-func configure(p_item_id: String, p_name: String, p_amount: int, p_mass_class := 0, p_color := Color("8b949c")) -> void:
+func configure(p_item_id: String, p_name: String, p_amount: int, p_mass_class := 0, p_color := Color("8b949c"), p_persistent_id := "") -> void:
     item_id = p_item_id
     display_name = p_name
     amount = p_amount
     mass_class = p_mass_class
     accent = p_color
+    persistent_id = p_persistent_id
 
 func _ready() -> void:
     add_to_group("salvage")
@@ -120,6 +122,16 @@ func get_prompt_text() -> String:
         return "[E] Take %s  x%d" % [display_name, amount]
     return "[E] Lift %s  x%d  |  %.0f kg cargo" % [display_name, amount, mass]
 
+func mark_persisted_removed() -> void:
+    if persistent_id.is_empty():
+        return
+    var states: Array[Node] = get_tree().get_nodes_in_group("world_state")
+    if states.is_empty():
+        return
+    var state := states[0] as RiftWorldState
+    if is_instance_valid(state):
+        state.mark_removed(persistent_id)
+
 func interact(player: Node) -> void:
     if mass_class > 0:
         var carry_nodes: Array[Node] = get_tree().get_nodes_in_group("carry_system")
@@ -128,4 +140,5 @@ func interact(player: Node) -> void:
         return
     if player.has_method("add_component"):
         player.add_component(item_id, amount)
+        mark_persisted_removed()
         queue_free()
