@@ -234,7 +234,7 @@ void ARiftPowerDevice::GatherNetwork(TSet<ARiftPowerDevice*>& OutNetwork)
     Queue.Add(this);
     while (Queue.Num() > 0)
     {
-        ARiftPowerDevice* Current = Queue.Pop(false);
+        ARiftPowerDevice* Current = Queue.Pop(EAllowShrinking::No);
         if (!Current || OutNetwork.Contains(Current))
         {
             continue;
