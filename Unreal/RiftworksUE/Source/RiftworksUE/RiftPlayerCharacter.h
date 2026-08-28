@@ -38,6 +38,7 @@ public:
     ARiftPlayerCharacter();
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="RIFTWORKS|Player")
     TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -47,6 +48,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="RIFTWORKS|Lighting")
     TObjectPtr<UPointLightComponent> MuzzleFlash;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Player")
+    float Health = 100.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Movement")
     float WalkSpeed = 420.0f;
@@ -119,6 +123,12 @@ public:
 
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnCarriedSalvageChanged(ARiftSalvageActor* NewCarriedSalvage);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnDamaged(float NewHealth, float DamageAmount);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnDied();
 
 protected:
     virtual void BeginPlay() override;
