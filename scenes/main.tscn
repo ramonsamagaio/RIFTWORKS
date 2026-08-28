@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/assembly_system.gd" type="Script" id="2"]
@@ -13,6 +13,7 @@
 [ext_resource path="res://scripts/carry_system.gd" type="Script" id="11"]
 [ext_resource path="res://scripts/adaptive_hud.gd" type="Script" id="12"]
 [ext_resource path="res://scripts/interaction_highlight.gd" type="Script" id="13"]
+[ext_resource path="res://scripts/underground_dressing.gd" type="Script" id="14"]
 
 [node name="Riftworks" type="Node3D"]
 script = ExtResource("1")
@@ -52,3 +53,6 @@ script = ExtResource("12")
 
 [node name="InteractionHighlight" type="Node" parent="."]
 script = ExtResource("13")
+
+[node name="UndergroundDressing" type="Node3D" parent="."]
+script = ExtResource("14")
