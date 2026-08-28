@@ -4,6 +4,7 @@ try:
     import riftworks_setup
     import riftworks_extras
     import riftworks_polish
+    import riftworks_vertical_slice
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -21,8 +22,9 @@ try:
 
     riftworks_polish.apply_all()
     riftworks_extras.apply_all()
+    riftworks_vertical_slice.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python/riftworks_setup.py, riftworks_polish.py and riftworks_extras.py from Tools > Execute Python Script."
+        "After C++ compiles, run Content/Python/riftworks_setup.py, riftworks_polish.py, riftworks_extras.py and riftworks_vertical_slice.py from Tools > Execute Python Script."
     )
