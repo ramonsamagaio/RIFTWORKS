@@ -5,46 +5,95 @@ const CHUNK_SIZE := 64.0
 const ACTIVE_RADIUS := 2
 const CORE_RADIUS := 112.0
 const WORLD_SEED := 731942
+const REFRESH_INTERVAL := 0.55
+const GENERATION_INTERVAL := 0.055
+const MAX_GENERATIONS_PER_TICK := 1
+const MAX_UNLOADS_PER_REFRESH := 4
 
 var player: RiftPlayer
-var chunks := {}
+var chunks: Dictionary = {}
+var wanted_chunks: Dictionary = {}
+var pending_generation: Array[Vector2i] = []
 var refresh_timer := 0.0
+var generation_timer := 0.0
 var region_noise := FastNoiseLite.new()
+var last_center := Vector2i(999999,999999)
 
 func _ready() -> void:
     region_noise.seed = WORLD_SEED
     region_noise.frequency = 0.0038
     await get_tree().process_frame
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
-    _refresh_chunks()
+    _refresh_chunks(true)
 
 func _process(delta: float) -> void:
     refresh_timer -= delta
+    generation_timer -= delta
     if refresh_timer <= 0.0:
-        refresh_timer = 0.65
-        _refresh_chunks()
+        refresh_timer = REFRESH_INTERVAL
+        _refresh_chunks(false)
+    if generation_timer <= 0.0:
+        generation_timer = GENERATION_INTERVAL
+        _process_generation_budget()
 
-func _refresh_chunks() -> void:
+func _current_center() -> Vector2i:
+    return Vector2i(
+        floori(player.global_position.x / CHUNK_SIZE),
+        floori(player.global_position.z / CHUNK_SIZE)
+    )
+
+func _refresh_chunks(force := false) -> void:
     if not is_instance_valid(player):
         return
-    var center := Vector2i(floori(player.global_position.x / CHUNK_SIZE), floori(player.global_position.z / CHUNK_SIZE))
-    var wanted := {}
+    var center := _current_center()
+    if not force and center == last_center:
+        return
+    last_center = center
+    wanted_chunks.clear()
+
     for x in range(center.x - ACTIVE_RADIUS, center.x + ACTIVE_RADIUS + 1):
         for z in range(center.y - ACTIVE_RADIUS, center.y + ACTIVE_RADIUS + 1):
             var key := Vector2i(x,z)
             var world_center := Vector3((x + 0.5) * CHUNK_SIZE, 0, (z + 0.5) * CHUNK_SIZE)
             if Vector2(world_center.x, world_center.z).length() < CORE_RADIUS:
                 continue
-            wanted[key] = true
-            if not chunks.has(key):
-                chunks[key] = _generate_chunk(key)
+            wanted_chunks[key] = true
+            if not chunks.has(key) and not pending_generation.has(key):
+                pending_generation.append(key)
 
-    for key in chunks.keys().duplicate():
-        if not wanted.has(key):
-            var node: Node = chunks[key]
-            if is_instance_valid(node):
-                node.queue_free()
-            chunks.erase(key)
+    # Nearest chunks are always generated first. A fast sprint never asks one frame to build an entire ring.
+    pending_generation.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+        return a.distance_squared_to(center) < b.distance_squared_to(center)
+    )
+
+    var unload_count := 0
+    for key_value: Variant in chunks.keys().duplicate():
+        var key: Vector2i = key_value
+        if wanted_chunks.has(key):
+            continue
+        var node := chunks.get(key) as Node
+        if is_instance_valid(node):
+            node.queue_free()
+        chunks.erase(key)
+        unload_count += 1
+        if unload_count >= MAX_UNLOADS_PER_REFRESH:
+            break
+
+    # Remove obsolete queued chunks without generating them just because the player once passed nearby.
+    for i in range(pending_generation.size() - 1, -1, -1):
+        if not wanted_chunks.has(pending_generation[i]):
+            pending_generation.remove_at(i)
+
+func _process_generation_budget() -> void:
+    if not is_instance_valid(player):
+        return
+    var generated := 0
+    while generated < MAX_GENERATIONS_PER_TICK and not pending_generation.is_empty():
+        var key: Vector2i = pending_generation.pop_front()
+        if chunks.has(key) or not wanted_chunks.has(key):
+            continue
+        chunks[key] = _generate_chunk(key)
+        generated += 1
 
 func _seed_for(key: Vector2i) -> int:
     return abs(WORLD_SEED ^ (key.x * 92837111) ^ (key.y * 689287499))
@@ -103,7 +152,6 @@ func _generate_chunk(key: Vector2i) -> Node3D:
     if has_z_road:
         _box(root, Vector3(CHUNK_SIZE*0.5,0.022,CHUNK_SIZE*0.5), Vector3(8,0.05,CHUNK_SIZE), Color("14181d"), false)
 
-    # Continuous region noise deliberately creates broad transition belts instead of hard biome chunks.
     if region < 0.34:
         _generate_woodland(root, local_rng, 1.0)
     elif region < 0.44:
@@ -190,8 +238,8 @@ func _tree(parent: Node3D, pos: Vector3, scale_factor: float, r: RandomNumberGen
 func _spawn_chunk_salvage(root: Node3D, r: RandomNumberGenerator) -> void:
     if r.randf() > 0.7:
         return
-    var ids := ["scrap","battery_cell","cable","electronics","motor","fuel"]
-    var names := ["Scrap","Battery Cell","Cable Coil","Control Board","Industrial Motor","Fuel Can"]
+    var ids: Array[String] = ["scrap","battery_cell","cable","electronics","motor","fuel"]
+    var names: Array[String] = ["Scrap","Battery Cell","Cable Coil","Control Board","Industrial Motor","Fuel Can"]
     var idx := r.randi_range(0,ids.size()-1)
     var prop := SalvageProp.new()
     prop.configure(ids[idx], names[idx], 1 if idx > 0 else r.randi_range(2,4), 1 if ids[idx] == "motor" else 0)
