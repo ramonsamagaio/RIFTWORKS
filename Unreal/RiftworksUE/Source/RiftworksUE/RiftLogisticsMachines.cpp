@@ -25,7 +25,7 @@ ARiftPoweredConveyor::ARiftPoweredConveyor()
 
     if (Mesh)
     {
-        Mesh->SetRelativeScale3D(FVector(0.28f, 0.28f, 0.65f));
+        Mesh->SetRelativeScale3D(FVector(1.0f));
     }
 
     Belt = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ConveyorBelt"));
@@ -85,7 +85,7 @@ ARiftFreightLift::ARiftFreightLift()
 
     if (Mesh)
     {
-        Mesh->SetRelativeScale3D(FVector(0.38f, 0.38f, 0.85f));
+        Mesh->SetRelativeScale3D(FVector(1.0f));
     }
 
     Platform = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FreightPlatform"));
