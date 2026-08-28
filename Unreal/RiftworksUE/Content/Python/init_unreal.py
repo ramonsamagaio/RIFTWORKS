@@ -12,6 +12,7 @@ try:
     import riftworks_encounter_staging
     import riftworks_instance_polish
     import riftworks_salvage_fabrication
+    import riftworks_logistics_machines
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -37,8 +38,9 @@ try:
     riftworks_encounter_staging.apply_all()
     riftworks_instance_polish.apply_all()
     riftworks_salvage_fabrication.apply_all()
+    riftworks_logistics_machines.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines order."
     )
