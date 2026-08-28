@@ -10,6 +10,96 @@
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace RiftWorldPrivate
+{
+    void AddBox(UHierarchicalInstancedStaticMeshComponent* Component, const FVector& Location, const FVector& Size, const FRotator& Rotation = FRotator::ZeroRotator)
+    {
+        if (!Component)
+        {
+            return;
+        }
+        Component->AddInstance(FTransform(Rotation, Location, FVector(Size.X / 100.0f, Size.Y / 100.0f, Size.Z / 100.0f)));
+    }
+
+    void AddDoorWall(UHierarchicalInstancedStaticMeshComponent* Component, const FVector& Center, float Width, float Height, float Thickness, float DoorWidth, bool bAlongX)
+    {
+        const float Segment = FMath::Max(80.0f, (Width - DoorWidth) * 0.5f);
+        if (bAlongX)
+        {
+            AddBox(Component, Center + FVector(-(DoorWidth + Segment) * 0.5f, 0.0f, Height * 0.5f), FVector(Segment, Thickness, Height));
+            AddBox(Component, Center + FVector((DoorWidth + Segment) * 0.5f, 0.0f, Height * 0.5f), FVector(Segment, Thickness, Height));
+            AddBox(Component, Center + FVector(0.0f, 0.0f, Height - 35.0f), FVector(DoorWidth, Thickness, 70.0f));
+        }
+        else
+        {
+            AddBox(Component, Center + FVector(0.0f, -(DoorWidth + Segment) * 0.5f, Height * 0.5f), FVector(Thickness, Segment, Height));
+            AddBox(Component, Center + FVector(0.0f, (DoorWidth + Segment) * 0.5f, Height * 0.5f), FVector(Thickness, Segment, Height));
+            AddBox(Component, Center + FVector(0.0f, 0.0f, Height - 35.0f), FVector(Thickness, DoorWidth, 70.0f));
+        }
+    }
+
+    void AddOpenBuilding(UHierarchicalInstancedStaticMeshComponent* Building, UHierarchicalInstancedStaticMeshComponent* Floor,
+        const FVector& Center, float Width, float Depth, float Height, bool bIndustrial, FRandomStream& Stream)
+    {
+        const float Wall = bIndustrial ? 28.0f : 22.0f;
+        const float Door = bIndustrial ? FMath::Min(520.0f, Width * 0.48f) : 180.0f;
+        const float FloorThickness = 24.0f;
+
+        AddBox(Floor, Center + FVector(0.0f, 0.0f, FloorThickness * 0.5f), FVector(Width, Depth, FloorThickness));
+        AddBox(Building, Center + FVector(0.0f, Depth * 0.5f, Height * 0.5f), FVector(Width, Wall, Height));
+        AddBox(Building, Center + FVector(-Width * 0.5f, 0.0f, Height * 0.5f), FVector(Wall, Depth, Height));
+        AddBox(Building, Center + FVector(Width * 0.5f, 0.0f, Height * 0.5f), FVector(Wall, Depth, Height));
+        AddDoorWall(Building, Center + FVector(0.0f, -Depth * 0.5f, 0.0f), Width, Height, Wall, Door, true);
+        AddBox(Building, Center + FVector(0.0f, 0.0f, Height + 14.0f), FVector(Width + 45.0f, Depth + 45.0f, 28.0f));
+
+        // Architectural rhythm instead of featureless cubes.
+        const int32 BayCount = bIndustrial ? 4 : 3;
+        for (int32 Bay = 1; Bay < BayCount; ++Bay)
+        {
+            const float Alpha = static_cast<float>(Bay) / static_cast<float>(BayCount);
+            const float LocalX = FMath::Lerp(-Width * 0.5f, Width * 0.5f, Alpha);
+            AddBox(Building, Center + FVector(LocalX, Depth * 0.5f + 16.0f, Height * 0.52f), FVector(18.0f, 32.0f, Height * 0.82f));
+        }
+
+        if (bIndustrial)
+        {
+            // Loading canopy + rooftop machinery silhouette.
+            AddBox(Building, Center + FVector(0.0f, -Depth * 0.5f - 150.0f, Height * 0.72f), FVector(FMath::Min(Width * 0.72f, 950.0f), 300.0f, 24.0f));
+            AddBox(Building, Center + FVector(-Width * 0.24f, -Depth * 0.5f - 150.0f, Height * 0.35f), FVector(26.0f, 26.0f, Height * 0.7f));
+            AddBox(Building, Center + FVector(Width * 0.24f, -Depth * 0.5f - 150.0f, Height * 0.35f), FVector(26.0f, 26.0f, Height * 0.7f));
+            AddBox(Building, Center + FVector(Width * 0.22f, Depth * 0.08f, Height + 95.0f), FVector(260.0f, 220.0f, 150.0f));
+        }
+        else
+        {
+            // Porch / sign / rooftop block gives residential-commercial silhouettes more character.
+            AddBox(Building, Center + FVector(0.0f, -Depth * 0.5f - 75.0f, 230.0f), FVector(FMath::Min(Width * 0.58f, 520.0f), 150.0f, 18.0f));
+            if (Stream.FRand() < 0.55f)
+            {
+                AddBox(Building, Center + FVector(Width * 0.26f, 0.0f, Height + 55.0f), FVector(170.0f, 140.0f, 90.0f));
+            }
+        }
+    }
+
+    void AddTunnelSection(ARiftWorldChunk* Chunk, const FVector& Center, float Width, float Length, float Height)
+    {
+        if (!Chunk)
+        {
+            return;
+        }
+        AddBox(Chunk->RoadInstances, Center + FVector(0.0f, 0.0f, -16.0f), FVector(Width, Length, 32.0f));
+        AddBox(Chunk->BuildingInstances, Center + FVector(-Width * 0.5f, 0.0f, Height * 0.5f), FVector(30.0f, Length, Height));
+        AddBox(Chunk->BuildingInstances, Center + FVector(Width * 0.5f, 0.0f, Height * 0.5f), FVector(30.0f, Length, Height));
+        AddBox(Chunk->BuildingInstances, Center + FVector(0.0f, 0.0f, Height), FVector(Width, Length, 26.0f));
+
+        for (float Y = -Length * 0.4f; Y <= Length * 0.4f; Y += 420.0f)
+        {
+            AddBox(Chunk->BuildingInstances, Center + FVector(-Width * 0.44f, Y, Height * 0.5f), FVector(34.0f, 34.0f, Height));
+            AddBox(Chunk->BuildingInstances, Center + FVector(Width * 0.44f, Y, Height * 0.5f), FVector(34.0f, 34.0f, Height));
+            AddBox(Chunk->BuildingInstances, Center + FVector(0.0f, Y, Height * 0.88f), FVector(Width * 0.82f, 30.0f, 30.0f));
+        }
+    }
+}
+
 ARiftWorldChunk::ARiftWorldChunk()
 {
     Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -17,7 +107,7 @@ ARiftWorldChunk::ARiftWorldChunk()
 
     GroundInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("Ground"));
     BuildingInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("Buildings"));
-    RoadInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("Roads"));
+    RoadInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("RoadsAndFloors"));
     TrunkInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("TreeTrunks"));
     FoliageInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("TreeCrowns"));
 
@@ -69,55 +159,56 @@ void ARiftWorldChunk::BuildSurfaceChunk(FIntPoint Key, int32 WorldSeed, float Ch
         (Key.Y - WorldSeed * 0.001f) * 0.31f));
     const float Region = (RegionNoise + 1.0f) * 0.5f;
 
-    GroundInstances->AddInstance(FTransform(
-        FRotator::ZeroRotator,
-        FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, -50.0f),
-        FVector(ChunkSize / 100.0f, ChunkSize / 100.0f, 1.0f)));
+    RiftWorldPrivate::AddBox(GroundInstances, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, -50.0f), FVector(ChunkSize, ChunkSize, 100.0f));
 
     const bool bRoadX = FMath::Abs(Key.Y % 3) == 0;
     const bool bRoadY = FMath::Abs(Key.X % 3) == 0;
     if (bRoadX)
     {
-        RoadInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, 3.0f), FVector(ChunkSize / 100.0f, 8.0f, 0.06f)));
+        RiftWorldPrivate::AddBox(RoadInstances, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, 4.0f), FVector(ChunkSize, 820.0f, 8.0f));
+        RiftWorldPrivate::AddBox(BuildingInstances, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f - 500.0f, 12.0f), FVector(ChunkSize, 120.0f, 24.0f));
+        RiftWorldPrivate::AddBox(BuildingInstances, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f + 500.0f, 12.0f), FVector(ChunkSize, 120.0f, 24.0f));
     }
     if (bRoadY)
     {
-        RoadInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, 4.0f), FVector(8.0f, ChunkSize / 100.0f, 0.06f)));
+        RiftWorldPrivate::AddBox(RoadInstances, FVector(ChunkSize * 0.5f, ChunkSize * 0.5f, 5.0f), FVector(820.0f, ChunkSize, 10.0f));
+        RiftWorldPrivate::AddBox(BuildingInstances, FVector(ChunkSize * 0.5f - 500.0f, ChunkSize * 0.5f, 12.0f), FVector(120.0f, ChunkSize, 24.0f));
+        RiftWorldPrivate::AddBox(BuildingInstances, FVector(ChunkSize * 0.5f + 500.0f, ChunkSize * 0.5f, 12.0f), FVector(120.0f, ChunkSize, 24.0f));
     }
 
     const float UrbanWeight = FMath::Clamp((Region - 0.30f) / 0.35f, 0.0f, 1.0f) * FMath::Clamp((0.82f - Region) / 0.18f, 0.0f, 1.0f);
     const float IndustrialWeight = FMath::Clamp((Region - 0.62f) / 0.25f, 0.0f, 1.0f);
     const float WoodlandWeight = FMath::Clamp((0.55f - Region) / 0.35f, 0.0f, 1.0f);
 
-    const int32 BuildingCount = FMath::RoundToInt(FMath::Lerp(1.0f, 8.0f, FMath::Max(UrbanWeight, IndustrialWeight)));
+    const int32 BuildingCount = FMath::RoundToInt(FMath::Lerp(1.0f, 7.0f, FMath::Max(UrbanWeight, IndustrialWeight)));
     for (int32 Index = 0; Index < BuildingCount; ++Index)
     {
-        float X = Stream.FRandRange(700.0f, ChunkSize - 700.0f);
-        float Y = Stream.FRandRange(700.0f, ChunkSize - 700.0f);
-        if (bRoadX && FMath::Abs(Y - ChunkSize * 0.5f) < 900.0f) { Y += 1500.0f; }
-        if (bRoadY && FMath::Abs(X - ChunkSize * 0.5f) < 900.0f) { X += 1500.0f; }
-        X = FMath::Clamp(X, 500.0f, ChunkSize - 500.0f);
-        Y = FMath::Clamp(Y, 500.0f, ChunkSize - 500.0f);
+        float X = Stream.FRandRange(850.0f, ChunkSize - 850.0f);
+        float Y = Stream.FRandRange(850.0f, ChunkSize - 850.0f);
+        if (bRoadX && FMath::Abs(Y - ChunkSize * 0.5f) < 1050.0f) { Y += (Y < ChunkSize * 0.5f ? -1250.0f : 1250.0f); }
+        if (bRoadY && FMath::Abs(X - ChunkSize * 0.5f) < 1050.0f) { X += (X < ChunkSize * 0.5f ? -1250.0f : 1250.0f); }
+        X = FMath::Clamp(X, 650.0f, ChunkSize - 650.0f);
+        Y = FMath::Clamp(Y, 650.0f, ChunkSize - 650.0f);
 
         const bool bIndustrial = Stream.FRand() < IndustrialWeight;
-        const float Width = bIndustrial ? Stream.FRandRange(1300.0f, 2200.0f) : Stream.FRandRange(700.0f, 1400.0f);
-        const float Depth = bIndustrial ? Stream.FRandRange(1100.0f, 2000.0f) : Stream.FRandRange(700.0f, 1400.0f);
-        const float Height = bIndustrial ? Stream.FRandRange(500.0f, 1000.0f) : Stream.FRandRange(450.0f, 1800.0f);
-        BuildingInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, Height * 0.5f), FVector(Width / 100.0f, Depth / 100.0f, Height / 100.0f)));
+        const float Width = bIndustrial ? Stream.FRandRange(1150.0f, 1900.0f) : Stream.FRandRange(720.0f, 1200.0f);
+        const float Depth = bIndustrial ? Stream.FRandRange(1050.0f, 1750.0f) : Stream.FRandRange(700.0f, 1150.0f);
+        const float Height = bIndustrial ? Stream.FRandRange(410.0f, 620.0f) : Stream.FRandRange(315.0f, 430.0f);
+        RiftWorldPrivate::AddOpenBuilding(BuildingInstances, RoadInstances, FVector(X, Y, 0.0f), Width, Depth, Height, bIndustrial, Stream);
     }
 
-    const int32 TreeCount = FMath::RoundToInt(FMath::Lerp(2.0f, 30.0f, WoodlandWeight));
+    const int32 TreeCount = FMath::RoundToInt(FMath::Lerp(3.0f, 28.0f, WoodlandWeight));
     for (int32 Index = 0; Index < TreeCount; ++Index)
     {
         const float X = Stream.FRandRange(250.0f, ChunkSize - 250.0f);
         const float Y = Stream.FRandRange(250.0f, ChunkSize - 250.0f);
-        if ((bRoadX && FMath::Abs(Y - ChunkSize * 0.5f) < 650.0f) || (bRoadY && FMath::Abs(X - ChunkSize * 0.5f) < 650.0f))
+        if ((bRoadX && FMath::Abs(Y - ChunkSize * 0.5f) < 700.0f) || (bRoadY && FMath::Abs(X - ChunkSize * 0.5f) < 700.0f))
         {
             continue;
         }
-        const float Scale = Stream.FRandRange(0.8f, 1.5f);
-        TrunkInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, 160.0f * Scale), FVector(0.55f * Scale, 0.55f * Scale, 3.2f * Scale)));
-        FoliageInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, 420.0f * Scale), FVector(2.2f * Scale, 2.2f * Scale, 4.0f * Scale)));
+        const float Scale = Stream.FRandRange(0.75f, 1.35f);
+        TrunkInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, 150.0f * Scale), FVector(0.42f * Scale, 0.42f * Scale, 3.0f * Scale)));
+        FoliageInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, 385.0f * Scale), FVector(1.8f * Scale, 1.8f * Scale, 3.4f * Scale)));
     }
 }
 
@@ -130,35 +221,35 @@ ARiftWorldDirector::ARiftWorldDirector()
     MoonLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("MoonLight"));
     MoonLight->SetupAttachment(RootComponentObject);
     MoonLight->SetRelativeRotation(FRotator(-54.0f, -31.0f, 0.0f));
-    MoonLight->SetIntensity(0.12f);
-    MoonLight->SetLightColor(FLinearColor(0.37f, 0.47f, 0.72f));
+    MoonLight->SetIntensity(0.018f);
+    MoonLight->SetLightColor(FLinearColor(0.22f, 0.30f, 0.55f));
     MoonLight->CastShadows = true;
-    MoonLight->VolumetricScatteringIntensity = 0.35f;
+    MoonLight->SetVolumetricScatteringIntensity(0.08f);
 
     NightSkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("NightSkyLight"));
     NightSkyLight->SetupAttachment(RootComponentObject);
-    NightSkyLight->SetIntensity(0.08f);
-    NightSkyLight->SetLightColor(FLinearColor(0.08f, 0.11f, 0.18f));
+    NightSkyLight->SetIntensity(0.012f);
+    NightSkyLight->SetLightColor(FLinearColor(0.035f, 0.05f, 0.09f));
     NightSkyLight->Mobility = EComponentMobility::Movable;
 
     AtmosphereFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("AtmosphereFog"));
     AtmosphereFog->SetupAttachment(RootComponentObject);
-    AtmosphereFog->SetFogDensity(0.018f);
-    AtmosphereFog->SetFogHeightFalloff(0.11f);
-    AtmosphereFog->SetFogInscatteringColor(FLinearColor(0.025f, 0.04f, 0.075f));
+    AtmosphereFog->SetFogDensity(0.0035f);
+    AtmosphereFog->SetFogHeightFalloff(0.18f);
+    AtmosphereFog->SetFogInscatteringColor(FLinearColor(0.012f, 0.018f, 0.035f));
     AtmosphereFog->bEnableVolumetricFog = true;
-    AtmosphereFog->VolumetricFogScatteringDistribution = 0.62f;
-    AtmosphereFog->VolumetricFogExtinctionScale = 1.15f;
-    AtmosphereFog->VolumetricFogAlbedo = FColor(170, 185, 210);
-    AtmosphereFog->VolumetricFogDistance = 9000.0f;
+    AtmosphereFog->VolumetricFogScatteringDistribution = 0.35f;
+    AtmosphereFog->VolumetricFogExtinctionScale = 0.28f;
+    AtmosphereFog->VolumetricFogAlbedo = FColor(120, 135, 160);
+    AtmosphereFog->VolumetricFogDistance = 5200.0f;
 
     NightPostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("NightPostProcess"));
     NightPostProcess->SetupAttachment(RootComponentObject);
     NightPostProcess->bUnbound = true;
     NightPostProcess->Settings.bOverride_VignetteIntensity = true;
-    NightPostProcess->Settings.VignetteIntensity = 0.18f;
+    NightPostProcess->Settings.VignetteIntensity = 0.10f;
     NightPostProcess->Settings.bOverride_BloomIntensity = true;
-    NightPostProcess->Settings.BloomIntensity = 0.35f;
+    NightPostProcess->Settings.BloomIntensity = 0.08f;
 }
 
 void ARiftWorldDirector::BeginPlay()
@@ -285,34 +376,58 @@ void ARiftWorldDirector::GenerateUndergroundPrototype()
     }
     Underground->SetActorLabel(TEXT("Riftworks_ProceduralUnderground"));
 
-    for (int32 Step = 0; Step < 12; ++Step)
+    // Enclosed descending service tunnel.
+    for (int32 Step = 0; Step < 18; ++Step)
     {
-        const float Y = -Step * 155.0f;
-        const float Z = -45.0f - Step * 72.0f;
-        Underground->RoadInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0f, Y, Z), FVector(7.0f, 1.6f, 0.42f)));
+        const float Y = -Step * 185.0f;
+        const float Z = -55.0f - Step * 58.0f;
+        const FVector Center(0.0f, Y, Z);
+        RiftWorldPrivate::AddBox(Underground->RoadInstances, Center, FVector(820.0f, 195.0f, 28.0f));
+        RiftWorldPrivate::AddBox(Underground->BuildingInstances, Center + FVector(-420.0f, 0.0f, 220.0f), FVector(28.0f, 195.0f, 440.0f));
+        RiftWorldPrivate::AddBox(Underground->BuildingInstances, Center + FVector(420.0f, 0.0f, 220.0f), FVector(28.0f, 195.0f, 440.0f));
+        RiftWorldPrivate::AddBox(Underground->BuildingInstances, Center + FVector(0.0f, 0.0f, 440.0f), FVector(860.0f, 195.0f, 24.0f));
     }
 
-    for (int32 Section = 0; Section < 8; ++Section)
+    // Human infrastructure gradually turns into larger, stranger chambers.
+    float CurrentY = -4100.0f;
+    float CurrentZ = -1120.0f;
+    for (int32 Section = 0; Section < 7; ++Section)
     {
-        const float Y = -2100.0f - Section * 1200.0f;
-        const float Z = -900.0f - Section * 130.0f;
-        Underground->RoadInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0f, Y, Z), FVector(8.0f, 12.0f, 0.4f)));
-        Underground->BuildingInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(-410.0f, Y, Z + 320.0f), FVector(0.45f, 12.0f, 6.5f)));
-        Underground->BuildingInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(410.0f, Y, Z + 320.0f), FVector(0.45f, 12.0f, 6.5f)));
-        if (Section % 2 == 0)
+        const float Width = Section < 3 ? 920.0f : 1150.0f;
+        const float Height = Section < 3 ? 480.0f : 620.0f;
+        RiftWorldPrivate::AddTunnelSection(Underground, FVector(0.0f, CurrentY, CurrentZ), Width, 1350.0f, Height);
+
+        if (Section == 1 || Section == 3 || Section == 5)
         {
-            Underground->BuildingInstances->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0f, Y - 380.0f, Z + 120.0f), FVector(3.2f, 1.1f, 2.4f)));
+            const FVector Chamber(0.0f, CurrentY - 950.0f, CurrentZ);
+            RiftWorldPrivate::AddBox(Underground->RoadInstances, Chamber, FVector(2500.0f, 1700.0f, 34.0f));
+            RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(-1250.0f, 0.0f, 360.0f), FVector(34.0f, 1700.0f, 720.0f));
+            RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(1250.0f, 0.0f, 360.0f), FVector(34.0f, 1700.0f, 720.0f));
+            RiftWorldPrivate::AddDoorWall(Underground->BuildingInstances, Chamber + FVector(0.0f, -850.0f, 0.0f), 2500.0f, 720.0f, 34.0f, 620.0f, true);
+            RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(0.0f, 850.0f, 360.0f), FVector(2500.0f, 34.0f, 720.0f));
+            RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(0.0f, 0.0f, 720.0f), FVector(2500.0f, 1700.0f, 30.0f));
+
+            // A few columns and abandoned machine pedestals make the chambers readable.
+            for (int32 P = -1; P <= 1; P += 2)
+            {
+                RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(P * 720.0f, 280.0f, 270.0f), FVector(110.0f, 110.0f, 540.0f));
+                RiftWorldPrivate::AddBox(Underground->BuildingInstances, Chamber + FVector(P * 530.0f, -260.0f, 90.0f), FVector(300.0f, 240.0f, 180.0f));
+            }
+            CurrentY -= 1500.0f;
         }
+
+        CurrentY -= 1400.0f;
+        CurrentZ -= Section < 3 ? 85.0f : 125.0f;
     }
 
     UPointLightComponent* BreachLight = NewObject<UPointLightComponent>(Underground, TEXT("DeepBreachLight"));
     BreachLight->RegisterComponent();
     BreachLight->AttachToComponent(Underground->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    BreachLight->SetRelativeLocation(FVector(0.0f, -10500.0f, -1900.0f));
+    BreachLight->SetRelativeLocation(FVector(0.0f, CurrentY + 400.0f, CurrentZ + 220.0f));
     BreachLight->IntensityUnits = ELightUnits::Lumens;
-    BreachLight->SetIntensity(9000.0f);
-    BreachLight->SetAttenuationRadius(2600.0f);
-    BreachLight->SetLightColor(FLinearColor(0.38f, 0.18f, 0.85f));
-    BreachLight->VolumetricScatteringIntensity = 3.0f;
+    BreachLight->SetIntensity(2400.0f);
+    BreachLight->SetAttenuationRadius(2200.0f);
+    BreachLight->SetLightColor(FLinearColor(0.28f, 0.12f, 0.72f));
+    BreachLight->SetVolumetricScatteringIntensity(0.20f);
     BreachLight->CastShadows = true;
 }
