@@ -95,9 +95,12 @@ func _connect_nearest_pair() -> void:
     if source.global_position.distance_to(receiver.global_position) > 18.0:
         _message("Source and receiver are too far apart")
         return
+    if not receiver.has_method("set_signal"):
+        _message("Selected receiver cannot accept a logic signal")
+        return
     player.components["cable"] = int(player.components.get("cable",0)) - 1
-    source.output_changed.connect(receiver.set_signal)
-    receiver.set_signal(source.output)
+    source.output_changed.connect(Callable(receiver, "set_signal"))
+    receiver.call("set_signal", source.output)
     _make_signal_cable(source, receiver)
     connection_count += 1
     _message("Signal link #%d connected" % connection_count)
@@ -113,18 +116,18 @@ func _nearest_source(pos: Vector3, max_distance: float) -> LogicSource:
                 best = node
     return best
 
-func _nearest_receiver(pos: Vector3, max_distance: float) -> LogicReceiver:
-    var best: LogicReceiver
+func _nearest_receiver(pos: Vector3, max_distance: float) -> Node3D:
+    var best: Node3D
     var best_distance := max_distance
     for node in get_tree().get_nodes_in_group("logic_receivers"):
-        if node is LogicReceiver:
+        if node is Node3D and node.has_method("set_signal"):
             var d := node.global_position.distance_to(pos)
             if d < best_distance:
                 best_distance = d
                 best = node
     return best
 
-func _make_signal_cable(source: LogicSource, receiver: LogicReceiver) -> void:
+func _make_signal_cable(source: LogicSource, receiver: Node3D) -> void:
     var a := source.global_position + Vector3(0,0.45,0)
     var b := receiver.global_position + Vector3(0,0.45,0)
     var delta := b - a
