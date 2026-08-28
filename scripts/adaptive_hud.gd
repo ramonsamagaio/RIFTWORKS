@@ -21,10 +21,22 @@ func _ready() -> void:
     var runtime_grid := get_parent().get_node_or_null("PowerGrid")
     if runtime_grid is PowerGridSystem:
         grid = runtime_grid as PowerGridSystem
-    var old_hud := get_parent().get_node_or_null("HUD")
-    if is_instance_valid(old_hud):
-        old_hud.visible = false
+    _hide_legacy_prototype_ui()
     _build_ui()
+
+func _hide_legacy_prototype_ui() -> void:
+    var parent_node := get_parent()
+    var legacy_names: Array[String] = ["HUD", "AssemblySystem", "LogicSystem", "BreachSystem", "BaseSystem", "CarrySystem"]
+    for node_name in legacy_names:
+        var legacy := parent_node.get_node_or_null(node_name)
+        if not is_instance_valid(legacy):
+            continue
+        if legacy is CanvasLayer:
+            (legacy as CanvasLayer).visible = false
+            continue
+        for child in legacy.get_children():
+            if child is CanvasLayer:
+                (child as CanvasLayer).visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
     if not event is InputEventKey or not event.pressed or event.echo:
@@ -106,10 +118,10 @@ func _build_ui() -> void:
     build_panel.add_theme_stylebox_override("panel", _panel_style(0.70))
     build_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
     build_panel.position = Vector2(-382, 22)
-    build_panel.size = Vector2(360, 184)
+    build_panel.size = Vector2(360, 200)
     root.add_child(build_panel)
     build_label = Label.new()
-    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery\n1 platform   2 beam   3 wheel   4 motor wheel\n5 anchor   X motors   O save blueprint   P rebuild\n6 button   7 sensor   8 signal lamp   9 alarm\nK connect signal   0 repulsion   N attraction   M luminance"
+    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery\n1 platform   2 beam   3 wheel   4 motor wheel\n5 anchor   X motors   O save blueprint   P rebuild\n6 button   7 sensor   8 signal lamp   9 alarm\nK connect signal   0 repulsion   N attraction   M luminance\nHEAVY CARGO: E lift   J drop   H secure at base"
     build_label.add_theme_font_size_override("font_size", 14)
     build_label.add_theme_color_override("font_color", Color("b9c9d3"))
     build_panel.add_child(build_label)
