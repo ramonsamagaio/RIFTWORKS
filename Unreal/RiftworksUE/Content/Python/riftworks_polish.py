@@ -32,7 +32,6 @@ def refresh_character_animation_defaults() -> None:
         rw.safe_set(player, "run_animation", run)
         rw.safe_set(player, "crouch_animation", crouch)
         rw.safe_set(player, "pistol_shoot_animation", pistol_shoot)
-        # Explicitly clear the old analytic cookie. The current flashlight uses a single clean spotlight.
         try:
             flashlight = player.get_editor_property("flashlight")
             rw.safe_set(flashlight, "light_function_material", None)
@@ -55,6 +54,11 @@ def refresh_character_animation_defaults() -> None:
         rw.safe_set(npc, "hit_animation", hit)
         rw.safe_set(npc, "death_animation", death)
         rw.safe_set(npc, "health", 50.0)
+        try:
+            muzzle = npc.get_editor_property("weapon_muzzle_light")
+            rw.safe_set(muzzle, "volumetric_scattering_intensity", 0.10)
+        except Exception:
+            pass
         rw.asset_library.save_asset(npc_path, only_if_is_dirty=False)
 
     log(
@@ -64,6 +68,45 @@ def refresh_character_animation_defaults() -> None:
         f"run={getattr(run, 'get_name', lambda: None)()} "
         f"shoot={getattr(pistol_shoot, 'get_name', lambda: None)()}"
     )
+
+
+def reduce_legacy_volumetrics() -> None:
+    # Older Blueprint CDOs can preserve constructor defaults from before the flashlight cleanup.
+    paths = [
+        f"{rw.GAMEPLAY_BP_DIR}/BP_RiftBaseBeacon",
+        f"{rw.GAMEPLAY_BP_DIR}/BP_RiftGenerator",
+        f"{rw.GAMEPLAY_BP_DIR}/BP_RiftBattery",
+        f"{rw.GAMEPLAY_BP_DIR}/BP_RiftFloodlight",
+    ]
+    for path in paths:
+        cdo = rw.blueprint_cdo(path)
+        if not cdo:
+            continue
+        for prop in ["beacon_light", "status_light", "work_light"]:
+            try:
+                light = cdo.get_editor_property(prop)
+                if light:
+                    rw.safe_set(light, "volumetric_scattering_intensity", 0.08)
+            except Exception:
+                pass
+        rw.asset_library.save_asset(path, only_if_is_dirty=False)
+
+    for name in [
+        "BP_RiftBreachRepulsion",
+        "BP_RiftBreachAttraction",
+        "BP_RiftBreachLuminance",
+        "BP_RiftBreachGravity",
+    ]:
+        path = f"{rw.GAMEPLAY_BP_DIR}/{name}"
+        cdo = rw.blueprint_cdo(path)
+        if not cdo:
+            continue
+        try:
+            light = cdo.get_editor_property("core_light")
+            rw.safe_set(light, "volumetric_scattering_intensity", 0.22 if name == "BP_RiftBreachLuminance" else 0.10)
+        except Exception:
+            pass
+        rw.asset_library.save_asset(path, only_if_is_dirty=False)
 
 
 def configure_mannequin_colossus() -> str:
@@ -127,6 +170,7 @@ def replace_colossus_in_bootstrap(colossus_path: str) -> None:
 
 def apply_all() -> None:
     refresh_character_animation_defaults()
+    reduce_legacy_volumetrics()
     colossus_path = configure_mannequin_colossus()
     replace_colossus_in_bootstrap(colossus_path)
     try:
