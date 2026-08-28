@@ -1,8 +1,10 @@
 #include "RiftPlayerCharacter.h"
+#include "RiftGameplayActors.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/PointLightComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Perception/AISense_Hearing.h"
@@ -98,6 +100,8 @@ void ARiftPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &ARiftPlayerCharacter::InteractPressed);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &ARiftPlayerCharacter::FirePressed);
     PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &ARiftPlayerCharacter::ToggleCrouch);
+    PlayerInputComponent->BindAction(TEXT("DropHeavy"), IE_Pressed, this, &ARiftPlayerCharacter::DropHeavyPressed);
+    PlayerInputComponent->BindAction(TEXT("SecureHeavy"), IE_Pressed, this, &ARiftPlayerCharacter::SecureHeavyPressed);
 }
 
 void ARiftPlayerCharacter::MoveForward(float Value)
@@ -128,12 +132,12 @@ void ARiftPlayerCharacter::LookUp(float Value)
 
 void ARiftPlayerCharacter::StartSprint()
 {
-    GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = CarriedSalvage ? WalkSpeed * 0.72f : SprintSpeed;
 }
 
 void ARiftPlayerCharacter::StopSprint()
 {
-    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = CarriedSalvage ? WalkSpeed * 0.72f : WalkSpeed;
 }
 
 void ARiftPlayerCharacter::ToggleFlashlight()
@@ -160,6 +164,10 @@ void ARiftPlayerCharacter::UpdateInteractionTrace()
     const FVector End = Start + FirstPersonCamera->GetForwardVector() * 450.0f;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftInteraction), false, this);
+    if (CarriedSalvage)
+    {
+        Params.AddIgnoredActor(CarriedSalvage);
+    }
     if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) && Hit.GetActor() && Hit.GetActor()->Implements<URiftInteractable>())
     {
         CurrentInteractionText = IRiftInteractable::Execute_GetInteractionText(Hit.GetActor());
@@ -177,6 +185,10 @@ void ARiftPlayerCharacter::InteractPressed()
     const FVector End = Start + FirstPersonCamera->GetForwardVector() * 450.0f;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftInteract), false, this);
+    if (CarriedSalvage)
+    {
+        Params.AddIgnoredActor(CarriedSalvage);
+    }
     if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) && Hit.GetActor() && Hit.GetActor()->Implements<URiftInteractable>())
     {
         IRiftInteractable::Execute_Interact(Hit.GetActor(), this);
@@ -195,6 +207,10 @@ void ARiftPlayerCharacter::FirePressed()
     const FVector End = Start + Direction * RifleRange;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftFire), true, this);
+    if (CarriedSalvage)
+    {
+        Params.AddIgnoredActor(CarriedSalvage);
+    }
     GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
 
     MuzzleFlash->SetIntensity(5200.0f);
@@ -230,6 +246,90 @@ void ARiftPlayerCharacter::ToggleCrouch()
     }
 }
 
+void ARiftPlayerCharacter::DropHeavyPressed()
+{
+    DropHeavySalvage();
+}
+
+void ARiftPlayerCharacter::SecureHeavyPressed()
+{
+    SecureHeavySalvage();
+}
+
+bool ARiftPlayerCharacter::TryCarrySalvage(ARiftSalvageActor* Salvage)
+{
+    if (!Salvage || !Salvage->bHeavy || CarriedSalvage)
+    {
+        return false;
+    }
+    CarriedSalvage = Salvage;
+    Salvage->SetCarriedState(true);
+    Salvage->AttachToComponent(FirstPersonCamera, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    Salvage->SetActorRelativeLocation(FVector(150.0f, 0.0f, -45.0f));
+    Salvage->SetActorRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed * 0.72f;
+    BP_OnCarriedSalvageChanged(CarriedSalvage);
+    return true;
+}
+
+void ARiftPlayerCharacter::DropHeavySalvage()
+{
+    if (!CarriedSalvage)
+    {
+        return;
+    }
+    ARiftSalvageActor* Dropped = CarriedSalvage;
+    Dropped->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+    Dropped->SetActorLocation(GetActorLocation() + FirstPersonCamera->GetForwardVector() * 180.0f + FVector(0.0f, 0.0f, 45.0f));
+    Dropped->SetCarriedState(false);
+    if (Dropped->Mesh && Dropped->Mesh->IsSimulatingPhysics())
+    {
+        Dropped->Mesh->SetPhysicsLinearVelocity(FirstPersonCamera->GetForwardVector() * 80.0f);
+    }
+    CarriedSalvage = nullptr;
+    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    BP_OnCarriedSalvageChanged(nullptr);
+}
+
+bool ARiftPlayerCharacter::SecureHeavySalvage()
+{
+    if (!CarriedSalvage)
+    {
+        return false;
+    }
+    ARiftBaseBeacon* Base = FindNearbyBase(1400.0f);
+    if (!Base)
+    {
+        return false;
+    }
+    Base->StoreItem(CarriedSalvage->ItemId, CarriedSalvage->Amount);
+    CarriedSalvage->Destroy();
+    CarriedSalvage = nullptr;
+    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    BP_OnCarriedSalvageChanged(nullptr);
+    return true;
+}
+
+ARiftBaseBeacon* ARiftPlayerCharacter::FindNearbyBase(float Radius) const
+{
+    if (!GetWorld())
+    {
+        return nullptr;
+    }
+    ARiftBaseBeacon* Best = nullptr;
+    float BestDistanceSquared = FMath::Square(Radius);
+    for (TActorIterator<ARiftBaseBeacon> It(GetWorld()); It; ++It)
+    {
+        const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+        if (DistanceSquared <= BestDistanceSquared)
+        {
+            BestDistanceSquared = DistanceSquared;
+            Best = *It;
+        }
+    }
+    return Best;
+}
+
 void ARiftPlayerCharacter::AddComponentItem(FName ItemId, int32 Amount)
 {
     Components.FindOrAdd(ItemId) += FMath::Max(0, Amount);
@@ -255,4 +355,24 @@ bool ARiftPlayerCharacter::ConsumeComponentItem(FName ItemId, int32 Amount)
     *Count -= Amount;
     BP_OnInventoryChanged();
     return true;
+}
+
+float ARiftPlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+    if (DamageAmount <= 0.0f)
+    {
+        return 0.0f;
+    }
+    Health = FMath::Max(0.0f, Health - DamageAmount);
+    BP_OnDamaged(Health, DamageAmount);
+    if (Health <= 0.0f)
+    {
+        BP_OnDied();
+        DropHeavySalvage();
+        ARiftBaseBeacon* Base = FindNearbyBase(100000000.0f);
+        SetActorLocation(Base ? Base->GetActorLocation() + FVector(0.0f, 0.0f, 180.0f) : FVector(0.0f, 0.0f, 220.0f));
+        GetCharacterMovement()->StopMovementImmediately();
+        Health = 100.0f;
+    }
+    return DamageAmount;
 }
