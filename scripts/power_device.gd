@@ -15,7 +15,6 @@ var powered := false
 var grid: PowerGridSystem
 var status_light: OmniLight3D
 var work_light: SpotLight3D
-var body_material: StandardMaterial3D
 
 func configure(p_kind: Kind, p_name: String, value_a: float = 0.0, value_b: float = 0.0) -> void:
     kind = p_kind
@@ -31,6 +30,7 @@ func configure(p_kind: Kind, p_name: String, value_a: float = 0.0, value_b: floa
 
 func _ready() -> void:
     add_to_group("power_devices")
+    add_to_group("logic_receivers")
     _build_collision()
     _build_visual()
     _refresh_visual_state()
@@ -129,6 +129,26 @@ func set_powered(value: bool) -> void:
     powered = value
     _refresh_visual_state()
 
+func set_signal(value: bool) -> void:
+    enabled = value
+    if kind == Kind.CONSUMER and not enabled:
+        set_powered(false)
+    _refresh_visual_state()
+    if is_instance_valid(grid):
+        grid.force_recompute()
+
+func get_signature_strength() -> float:
+    if not enabled:
+        return 0.0
+    match kind:
+        Kind.GENERATOR:
+            return 5.0 + generation_kw * 7.0
+        Kind.CONSUMER:
+            return (8.0 + consumption_kw * 28.0) if powered else 0.0
+        Kind.BATTERY:
+            return 1.0 if charge_kwh > 0.0 else 0.0
+    return 0.0
+
 func get_prompt_text() -> String:
     var state := "ON" if enabled else "OFF"
     match kind:
@@ -141,9 +161,4 @@ func get_prompt_text() -> String:
     return "[E] %s" % display_name
 
 func interact(_player: Node) -> void:
-    enabled = not enabled
-    if kind == Kind.CONSUMER and not enabled:
-        set_powered(false)
-    _refresh_visual_state()
-    if is_instance_valid(grid):
-        grid.force_recompute()
+    set_signal(not enabled)
