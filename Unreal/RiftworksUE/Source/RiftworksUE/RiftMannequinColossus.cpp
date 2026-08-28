@@ -78,9 +78,11 @@ void ARiftMannequinColossus::BeginPlay()
 
 void ARiftMannequinColossus::Tick(float DeltaSeconds)
 {
+    // Deliberately bypass ARiftColossus::Tick: this prototype owns a simpler guaranteed roaming path.
     ACharacter::Tick(DeltaSeconds);
 
-    if (GetCharacterMovement()->MovementMode == MOVE_None)
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
+    if (!Movement || Movement->MovementMode == MOVE_None)
     {
         return;
     }
@@ -91,7 +93,8 @@ void ARiftMannequinColossus::Tick(float DeltaSeconds)
 
     if (!Direction.IsNearlyZero())
     {
-        AddMovementInput(Direction, 1.0f);
+        // Direct CharacterMovement velocity makes this visual prototype independent from NavMesh/input state.
+        Movement->Velocity = FVector(Direction.X * MoveSpeed, Direction.Y * MoveSpeed, Movement->Velocity.Z);
         SetActorRotation(FMath::RInterpTo(GetActorRotation(), Direction.Rotation(), DeltaSeconds, 1.4f));
     }
     UpdatePrototypeAnimation();
