@@ -1456,3 +1456,14 @@ This checklist is part of the GDD and must be updated as implementation changes.
 ## Maintenance rule
 
 **Always read/check this GDD before a substantial RIFTWORKS implementation session. Always update the checklist after the session. If the game diverges from the GDD because testing proves something better, update the GDD rather than silently letting design and code disagree.**
+
+---
+
+## Current implementation snapshot
+
+- First-person perspective is now a locked project decision; the player camera uses eye-height positioning, FPS FOV, subtle movement bob and an invisible shadow-only body to avoid self-clipping.
+- Desktop presentation defaults to true fullscreen at a 1920x1080 reference viewport and explicitly requests fullscreen at runtime outside headless CI.
+- The flashlight is mounted slightly off the camera axis so its beam reads as a held physical light rather than a perfectly centered camera spotlight.
+- Forward+ premium darkness stack remains active: dynamic flashlight shadows, projector cookie, volumetric fog interaction, AgX tonemapping, SSAO, SSIL and SDFGI.
+- Procedural surface streaming, procedural underground graph, physical salvage, power grid, logic links, FAS assembly, blueprints, Breach repulsion, humanoid threats, drones, Colossus weakpoints/harvest, base claiming and save/load are present in prototype form.
+- Godot CI strictly compiles every GDScript and boots the main scene on Godot 4.6.3 before changes are considered safe.
