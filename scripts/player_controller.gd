@@ -9,14 +9,20 @@ const SPRINT_SPEED := 8.2
 const ACCELERATION := 18.0
 const GRAVITY := 24.0
 const INTERACT_DISTANCE := 5.5
+const EYE_HEIGHT := 1.66
+const CAMERA_FOV := 78.0
+const WALK_BOB_SPEED := 9.2
+const WALK_BOB_AMOUNT := 0.028
+const SPRINT_BOB_SPEED := 12.8
+const SPRINT_BOB_AMOUNT := 0.043
 
 var yaw := 0.0
-var pitch := -0.16
+var pitch := -0.08
 var health := 100.0
 var flashlight_battery := 100.0
 var flashlight_on := true
 var scrap := 14
-var components := {
+var components: Dictionary = {
     "battery_cell": 2,
     "cable": 2,
     "electronics": 2,
@@ -33,16 +39,21 @@ var right_leg: Node3D
 var left_arm: Node3D
 var right_arm: Node3D
 var walk_phase := 0.0
+var view_bob_phase := 0.0
 var interaction_prompt := ""
-var shoulder_side := 1.0
 
 func _ready() -> void:
     add_to_group("player")
+    _force_fullscreen()
     _build_collision()
-    _build_low_poly_body()
+    _build_shadow_body()
     _build_camera()
     _build_flashlight()
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _force_fullscreen() -> void:
+    if DisplayServer.get_name() != "headless":
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 func _build_collision() -> void:
     var collision := CollisionShape3D.new()
@@ -60,40 +71,54 @@ func _mat(color: Color, metallic := 0.0, roughness := 0.72) -> StandardMaterial3
     mat.roughness = roughness
     return mat
 
-func _primitive_box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+func _shadow_box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
     var mi := MeshInstance3D.new()
     mi.position = pos
     var box := BoxMesh.new()
     box.size = size
     box.material = _mat(color)
     mi.mesh = box
+    # The first-person body exists only to cast a convincing player shadow.
+    # It is deliberately invisible to the player camera to eliminate self-clipping.
+    mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
     parent.add_child(mi)
     return mi
 
-func _build_low_poly_body() -> void:
+func _build_shadow_body() -> void:
     visual_root = Node3D.new()
-    visual_root.name = "LowPolyBody"
+    visual_root.name = "FirstPersonShadowBody"
     add_child(visual_root)
-    _primitive_box(visual_root, Vector3(0, 1.22, 0), Vector3(0.72, 0.82, 0.38), Color("49555d"))
-    _primitive_box(visual_root, Vector3(0, 1.72, 0), Vector3(0.46, 0.36, 0.42), Color("b19c86"))
-    _primitive_box(visual_root, Vector3(0, 1.91, 0.03), Vector3(0.56, 0.14, 0.5), Color("242a30"))
+    _shadow_box(visual_root, Vector3(0, 1.22, 0), Vector3(0.72, 0.82, 0.38), Color("49555d"))
+    _shadow_box(visual_root, Vector3(0, 1.72, 0), Vector3(0.46, 0.36, 0.42), Color("b19c86"))
+    _shadow_box(visual_root, Vector3(0, 1.91, 0.03), Vector3(0.56, 0.14, 0.5), Color("242a30"))
 
-    left_leg = Node3D.new(); left_leg.position = Vector3(-0.2, 0.82, 0); visual_root.add_child(left_leg)
-    right_leg = Node3D.new(); right_leg.position = Vector3(0.2, 0.82, 0); visual_root.add_child(right_leg)
-    _primitive_box(left_leg, Vector3(0, -0.38, 0), Vector3(0.25, 0.82, 0.28), Color("293039"))
-    _primitive_box(right_leg, Vector3(0, -0.38, 0), Vector3(0.25, 0.82, 0.28), Color("293039"))
+    left_leg = Node3D.new()
+    left_leg.position = Vector3(-0.2, 0.82, 0)
+    visual_root.add_child(left_leg)
+    right_leg = Node3D.new()
+    right_leg.position = Vector3(0.2, 0.82, 0)
+    visual_root.add_child(right_leg)
+    _shadow_box(left_leg, Vector3(0, -0.38, 0), Vector3(0.25, 0.82, 0.28), Color("293039"))
+    _shadow_box(right_leg, Vector3(0, -0.38, 0), Vector3(0.25, 0.82, 0.28), Color("293039"))
 
-    left_arm = Node3D.new(); left_arm.position = Vector3(-0.48, 1.43, 0); visual_root.add_child(left_arm)
-    right_arm = Node3D.new(); right_arm.position = Vector3(0.48, 1.43, 0); visual_root.add_child(right_arm)
-    _primitive_box(left_arm, Vector3(0, -0.26, 0), Vector3(0.22, 0.68, 0.24), Color("465159"))
-    _primitive_box(right_arm, Vector3(0, -0.26, 0), Vector3(0.22, 0.68, 0.24), Color("465159"))
+    left_arm = Node3D.new()
+    left_arm.position = Vector3(-0.48, 1.43, 0)
+    visual_root.add_child(left_arm)
+    right_arm = Node3D.new()
+    right_arm.position = Vector3(0.48, 1.43, 0)
+    visual_root.add_child(right_arm)
+    _shadow_box(left_arm, Vector3(0, -0.26, 0), Vector3(0.22, 0.68, 0.24), Color("465159"))
+    _shadow_box(right_arm, Vector3(0, -0.26, 0), Vector3(0.22, 0.68, 0.24), Color("465159"))
 
 func _build_camera() -> void:
     camera = Camera3D.new()
-    camera.name = "PlayerCamera"
+    camera.name = "FirstPersonCamera"
     camera.current = true
-    camera.fov = 72.0
+    camera.fov = CAMERA_FOV
+    camera.near = 0.045
+    camera.far = 900.0
     add_child(camera)
+    _update_camera(0.0)
 
 func _build_flashlight() -> void:
     flashlight = SpotLight3D.new()
@@ -111,7 +136,7 @@ func _build_flashlight() -> void:
     flashlight.shadow_bias = 0.02
     flashlight.shadow_normal_bias = 0.38
     flashlight.shadow_blur = 1.35
-    var cookie = load("res://assets/textures/flashlight_cookie.svg")
+    var cookie: Resource = load("res://assets/textures/flashlight_cookie.svg")
     if cookie is Texture2D:
         flashlight.light_projector = cookie
     add_child(flashlight)
@@ -131,8 +156,8 @@ func _build_flashlight() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        yaw -= event.relative.x * 0.0024
-        pitch = clampf(pitch - event.relative.y * 0.0022, -0.85, 0.48)
+        yaw -= event.relative.x * 0.00225
+        pitch = clampf(pitch - event.relative.y * 0.0021, -1.46, 1.46)
 
     if event is InputEventKey and event.pressed and not event.echo:
         match event.keycode:
@@ -150,15 +175,17 @@ func _unhandled_input(event: InputEvent) -> void:
                 _request_build("generator")
             KEY_T:
                 _request_build("battery")
-            KEY_V:
-                shoulder_side *= -1.0
 
 func _physics_process(delta: float) -> void:
     var input := Vector2.ZERO
-    if Input.is_key_pressed(KEY_A): input.x -= 1.0
-    if Input.is_key_pressed(KEY_D): input.x += 1.0
-    if Input.is_key_pressed(KEY_W): input.y -= 1.0
-    if Input.is_key_pressed(KEY_S): input.y += 1.0
+    if Input.is_key_pressed(KEY_A):
+        input.x -= 1.0
+    if Input.is_key_pressed(KEY_D):
+        input.x += 1.0
+    if Input.is_key_pressed(KEY_W):
+        input.y -= 1.0
+    if Input.is_key_pressed(KEY_S):
+        input.y += 1.0
     input = input.normalized()
 
     var yaw_basis := Basis(Vector3.UP, yaw)
@@ -174,7 +201,7 @@ func _physics_process(delta: float) -> void:
         velocity.y = 7.2
 
     move_and_slide()
-    _update_body_animation(delta)
+    _update_shadow_body(delta)
     _update_camera(delta)
     _update_flashlight(delta)
     _update_interaction_prompt()
@@ -185,11 +212,12 @@ func _process(delta: float) -> void:
         if flashlight_battery <= 0.0:
             set_flashlight(false)
 
-func _update_body_animation(delta: float) -> void:
+func _update_shadow_body(delta: float) -> void:
+    if not is_instance_valid(visual_root):
+        return
+    visual_root.rotation.y = yaw
     var flat_speed := Vector2(velocity.x, velocity.z).length()
-    if flat_speed > 0.15:
-        var target_angle := atan2(velocity.x, velocity.z)
-        visual_root.rotation.y = lerp_angle(visual_root.rotation.y, target_angle, 1.0 - exp(-10.0 * delta))
+    if flat_speed > 0.15 and is_on_floor():
         walk_phase += delta * (7.0 + flat_speed * 0.8)
         var swing := sin(walk_phase) * 0.52
         left_leg.rotation.x = swing
@@ -202,28 +230,40 @@ func _update_body_animation(delta: float) -> void:
         left_arm.rotation.x = lerpf(left_arm.rotation.x, 0.0, 1.0 - exp(-8.0 * delta))
         right_arm.rotation.x = lerpf(right_arm.rotation.x, 0.0, 1.0 - exp(-8.0 * delta))
 
+func _camera_bob(delta: float) -> Vector3:
+    var flat_speed := Vector2(velocity.x, velocity.z).length()
+    if flat_speed < 0.2 or not is_on_floor():
+        view_bob_phase = lerpf(view_bob_phase, 0.0, minf(1.0, delta * 5.0))
+        return Vector3.ZERO
+
+    var sprinting := Input.is_key_pressed(KEY_SHIFT) and flat_speed > WALK_SPEED + 0.5
+    var bob_speed := SPRINT_BOB_SPEED if sprinting else WALK_BOB_SPEED
+    var amount := SPRINT_BOB_AMOUNT if sprinting else WALK_BOB_AMOUNT
+    view_bob_phase += delta * bob_speed
+    return Vector3(
+        cos(view_bob_phase * 0.5) * amount * 0.48,
+        abs(sin(view_bob_phase)) * amount,
+        0.0
+    )
+
 func _update_camera(delta: float) -> void:
-    var target := global_position + Vector3(0, 1.42, 0)
-    var orbit := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
-    var desired := target + orbit * Vector3(0.72 * shoulder_side, 0.45, 4.65)
-
-    var query := PhysicsRayQueryParameters3D.create(target, desired)
-    query.exclude = [self]
-    query.collision_mask = 1
-    var hit := get_world_3d().direct_space_state.intersect_ray(query)
-    if not hit.is_empty():
-        var collision_point: Vector3 = hit.position
-        var dir := (desired - target).normalized()
-        desired = collision_point - dir * 0.22
-
-    camera.global_position = camera.global_position.lerp(desired, 1.0 - exp(-18.0 * delta))
-    var aim_forward := orbit * Vector3(0, 0, -1)
-    camera.look_at(target + aim_forward * 12.0, Vector3.UP)
+    if not is_instance_valid(camera):
+        return
+    var bob := _camera_bob(delta)
+    var view_basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
+    var local_bob := Basis(Vector3.UP, yaw) * bob
+    var eye_position := global_position + Vector3(0, EYE_HEIGHT, 0) + local_bob
+    camera.global_transform = Transform3D(view_basis, eye_position)
 
 func _update_flashlight(_delta: float) -> void:
-    var shoulder := global_position + Vector3(0, 1.35, 0) + Basis(Vector3.UP, visual_root.rotation.y) * Vector3(0.33, 0, -0.12)
-    flashlight.global_position = shoulder
-    flashlight_spill.global_position = shoulder
+    if not is_instance_valid(camera):
+        return
+    # Slightly off-axis mount keeps the beam feeling like a held flashlight instead
+    # of a perfectly centered game-camera spotlight.
+    var mount_offset := camera.global_basis * Vector3(0.17, -0.13, -0.09)
+    var mount_position := camera.global_position + mount_offset
+    flashlight.global_position = mount_position
+    flashlight_spill.global_position = mount_position
 
     var ray_from := camera.global_position
     var ray_to := ray_from + (-camera.global_basis.z) * 80.0
@@ -243,8 +283,10 @@ func _update_flashlight(_delta: float) -> void:
 
 func set_flashlight(value: bool) -> void:
     flashlight_on = value and flashlight_battery > 0.0
-    if is_instance_valid(flashlight): flashlight.visible = flashlight_on
-    if is_instance_valid(flashlight_spill): flashlight_spill.visible = flashlight_on
+    if is_instance_valid(flashlight):
+        flashlight.visible = flashlight_on
+    if is_instance_valid(flashlight_spill):
+        flashlight_spill.visible = flashlight_on
 
 func _interaction_hit() -> Dictionary:
     if not is_instance_valid(camera):
@@ -283,12 +325,16 @@ func _get_build_position() -> Vector3:
     return global_position + Basis(Vector3.UP, yaw) * Vector3(0, 0, -3.5)
 
 func _request_build(kind: String) -> void:
-    var cost := {}
+    var cost: Dictionary = {}
     match kind:
-        "floodlight": cost = {"scrap": 3, "cable": 1, "electronics": 1}
-        "generator": cost = {"scrap": 5, "motor": 1, "fuel": 1}
-        "battery": cost = {"scrap": 4, "battery_cell": 2}
-        _: return
+        "floodlight":
+            cost = {"scrap": 3, "cable": 1, "electronics": 1}
+        "generator":
+            cost = {"scrap": 5, "motor": 1, "fuel": 1}
+        "battery":
+            cost = {"scrap": 4, "battery_cell": 2}
+        _:
+            return
     if not _can_afford(cost):
         return
     _pay_cost(cost)
@@ -296,16 +342,17 @@ func _request_build(kind: String) -> void:
 
 func _can_afford(cost: Dictionary) -> bool:
     for key in cost:
-        var required: int = cost[key]
+        var required: int = int(cost[key])
         if key == "scrap":
-            if scrap < required: return false
+            if scrap < required:
+                return false
         elif int(components.get(key, 0)) < required:
             return false
     return true
 
 func _pay_cost(cost: Dictionary) -> void:
     for key in cost:
-        var amount: int = cost[key]
+        var amount: int = int(cost[key])
         if key == "scrap":
             scrap -= amount
         else:
