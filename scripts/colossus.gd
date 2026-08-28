@@ -1,6 +1,9 @@
 class_name ColossusWalker
 extends CharacterBody3D
 
+signal weakpoint_destroyed(kind: String)
+signal killed(position: Vector3)
+
 var move_speed := 1.05
 var route_radius := 46.0
 var route_center := Vector3.ZERO
@@ -12,8 +15,12 @@ var left_arm: Node3D
 var right_arm: Node3D
 var head: Node3D
 var pulse_light: OmniLight3D
+var weakpoint_hp := {"head":45.0,"torso":60.0,"legs":70.0}
+var destroyed := {"head":false,"torso":false,"legs":false}
+var dead := false
 
 func _ready() -> void:
+    add_to_group("colossi")
     route_center = global_position
     _build_collision()
     _build_body()
@@ -39,10 +46,10 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, metallic :=
 func _build_collision() -> void:
     var collision := CollisionShape3D.new()
     var capsule := CapsuleShape3D.new()
-    capsule.radius = 4.2
-    capsule.height = 18.0
+    capsule.radius = 5.1
+    capsule.height = 34.0
     collision.shape = capsule
-    collision.position.y = 10.0
+    collision.position.y = 16.7
     add_child(collision)
 
 func _build_body() -> void:
@@ -59,7 +66,7 @@ func _build_body() -> void:
 
     var torso := Node3D.new(); torso.position = Vector3(0, 22.5, 0); root.add_child(torso)
     _box(torso, Vector3.ZERO, Vector3(12.5, 9.0, 7.2), Color("20222a"), 0.35)
-    _box(torso, Vector3(0, 1.4, -3.9), Vector3(8.0, 3.4, 0.9), Color("2c2a36"), 0.48)
+    _box(torso, Vector3(0, 1.4, -3.9), Vector3(8.0, 3.4, 0.9), Color("5f4e73"), 0.42)
 
     left_arm = Node3D.new(); left_arm.position = Vector3(-7.1, 24.0, 0); root.add_child(left_arm)
     right_arm = Node3D.new(); right_arm.position = Vector3(7.1, 24.0, 0); root.add_child(right_arm)
@@ -79,6 +86,8 @@ func _build_body() -> void:
     head.add_child(pulse_light)
 
 func _physics_process(delta: float) -> void:
+    if dead:
+        return
     route_angle += delta * 0.018
     var desired_point := route_center + Vector3(cos(route_angle), 0, sin(route_angle)) * route_radius
     var dir := desired_point - global_position
@@ -101,4 +110,73 @@ func _physics_process(delta: float) -> void:
     head.rotation.y = sin(walk_phase * 0.23) * 0.13
 
     var footbeat := pow(maxf(0.0, sin(walk_phase * 2.0)), 14.0)
-    pulse_light.light_energy = 8.0 + footbeat * 6.0
+    pulse_light.light_energy = (4.0 if destroyed["head"] else 8.0) + footbeat * (2.0 if destroyed["head"] else 6.0)
+
+func take_hit(amount: float, world_hit_position: Vector3) -> String:
+    if dead:
+        return "DEAD"
+    var local_hit := to_local(world_hit_position)
+    var weakpoint := "armor"
+    if local_hit.y >= 26.0:
+        weakpoint = "head"
+    elif local_hit.y >= 18.0 and local_hit.y <= 26.0:
+        weakpoint = "torso"
+    elif local_hit.y <= 9.5:
+        weakpoint = "legs"
+
+    if weakpoint == "armor":
+        return "ARMORED"
+    if bool(destroyed[weakpoint]):
+        return "DESTROYED"
+
+    weakpoint_hp[weakpoint] = float(weakpoint_hp[weakpoint]) - amount
+    if float(weakpoint_hp[weakpoint]) <= 0.0:
+        destroyed[weakpoint] = true
+        weakpoint_destroyed.emit(weakpoint)
+        _on_weakpoint_destroyed(weakpoint)
+        if bool(destroyed["head"]) and bool(destroyed["torso"]) and bool(destroyed["legs"]):
+            _die()
+        return "%s DESTROYED" % weakpoint.to_upper()
+    return "%s %.0f" % [weakpoint.to_upper(), maxf(0.0,float(weakpoint_hp[weakpoint]))]
+
+func take_damage(_amount: float) -> void:
+    # Colossi deliberately ignore generic damage. Their vulnerable zones must be targeted.
+    pass
+
+func _on_weakpoint_destroyed(kind: String) -> void:
+    match kind:
+        "legs":
+            move_speed *= 0.34
+        "torso":
+            left_arm.rotation.z = 0.42
+            right_arm.rotation.z = -0.42
+        "head":
+            pulse_light.light_color = Color("6c4b72")
+            pulse_light.light_volumetric_fog_energy = 0.45
+
+func _die() -> void:
+    if dead:
+        return
+    dead = true
+    velocity = Vector3.ZERO
+    killed.emit(global_position)
+    pulse_light.light_color = Color("5d406c")
+    pulse_light.light_energy = 2.0
+    _drop_harvest()
+    var tween := create_tween()
+    tween.tween_property(self, "rotation:z", deg_to_rad(82.0), 2.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+    tween.tween_interval(1.5)
+    tween.tween_callback(queue_free)
+
+func _drop_harvest() -> void:
+    var parent := get_parent()
+    if parent == null:
+        return
+    var core := SalvageProp.new()
+    core.configure("breach_core", "Walker Bioelectric Core", 2, 1, Color("b180e4"))
+    parent.add_child(core)
+    core.global_position = global_position + Vector3(0,1.0,0)
+    var plate := SalvageProp.new()
+    plate.configure("scrap", "Colossus Carapace", 14, 1, Color("6c6574"))
+    parent.add_child(plate)
+    plate.global_position = global_position + Vector3(2.0,0.8,1.5)
