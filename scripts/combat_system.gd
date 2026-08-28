@@ -3,15 +3,18 @@ extends Node
 
 const RIFLE_RANGE := 95.0
 const RIFLE_DAMAGE := 22.0
+const GUNSHOT_ALERT_RADIUS := 54.0
 
 var player: RiftPlayer
 var cooldown := 0.0
 var feedback: Label
+var gunshot_player: AudioStreamPlayer3D
 
 func _ready() -> void:
     await get_tree().process_frame
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
     _make_feedback()
+    _build_gunshot_audio()
 
 func _process(delta: float) -> void:
     cooldown = maxf(0.0, cooldown - delta)
@@ -30,26 +33,79 @@ func _fire_rifle() -> void:
     var query := PhysicsRayQueryParameters3D.create(from, to)
     query.exclude = [player]
     query.collide_with_areas = true
-    var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+    var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(query)
     var end := to
     if not hit.is_empty():
-        end = hit.position
+        end = hit.get("position", to)
     _muzzle_flash(from + (-camera.global_basis.z) * 0.7)
     _tracer(from + (-camera.global_basis.z) * 0.65, end)
+    _play_gunshot(from)
+    _broadcast_gunshot(from)
 
     if hit.is_empty():
         _flash_feedback("MISS", Color("87949c"))
         return
 
-    var collider = hit.collider
+    var collider: Object = hit.get("collider")
     if collider and collider.has_method("take_hit"):
-        var result = collider.call("take_hit", RIFLE_DAMAGE, hit.position)
+        var result: Variant = collider.call("take_hit", RIFLE_DAMAGE, hit.get("position", end))
         _flash_feedback(str(result), Color("d7b7f2") if str(result).contains("DESTROYED") else Color("e9d7b8"))
     elif collider and collider.has_method("take_damage"):
         collider.call("take_damage", RIFLE_DAMAGE)
         _flash_feedback("HIT", Color("e6c7a0"))
     else:
         _flash_feedback("IMPACT", Color("9aa8b0"))
+
+func _broadcast_gunshot(position: Vector3) -> void:
+    var scene := get_tree().current_scene
+    if not is_instance_valid(scene):
+        return
+    for node in scene.find_children("*", "", true, false):
+        if not node is HumanoidEnemy:
+            continue
+        var enemy := node as HumanoidEnemy
+        var distance := enemy.global_position.distance_to(position)
+        if distance > GUNSHOT_ALERT_RADIUS:
+            continue
+        enemy.investigating_signature = true
+        enemy.investigation_target = position
+        if distance < 20.0:
+            enemy.alerted = true
+
+func _build_gunshot_audio() -> void:
+    var wav := AudioStreamWAV.new()
+    wav.format = AudioStreamWAV.FORMAT_16_BITS
+    wav.mix_rate = 22050
+    wav.stereo = false
+    var duration := 0.28
+    var sample_count := int(float(wav.mix_rate) * duration)
+    var data := PackedByteArray()
+    data.resize(sample_count * 2)
+    var noise_rng := RandomNumberGenerator.new()
+    noise_rng.seed = 78122
+    for i in range(sample_count):
+        var t := float(i) / float(wav.mix_rate)
+        var crack_env := exp(-t * 38.0)
+        var body_env := exp(-t * 11.0)
+        var crack := noise_rng.randf_range(-1.0,1.0) * crack_env * 0.82
+        var body := (sin(TAU * 118.0 * t) * 0.38 + sin(TAU * 67.0 * t) * 0.22) * body_env
+        var sample := clampf(crack + body, -1.0, 1.0)
+        data.encode_s16(i * 2, int(sample * 32767.0))
+    wav.data = data
+
+    gunshot_player = AudioStreamPlayer3D.new()
+    gunshot_player.stream = wav
+    gunshot_player.max_distance = 120.0
+    gunshot_player.unit_size = 7.0
+    gunshot_player.volume_db = 1.5
+    get_parent().add_child.call_deferred(gunshot_player)
+
+func _play_gunshot(position: Vector3) -> void:
+    if not is_instance_valid(gunshot_player):
+        return
+    gunshot_player.global_position = position
+    gunshot_player.pitch_scale = randf_range(0.96,1.035)
+    gunshot_player.play()
 
 func _tracer(from: Vector3, to: Vector3) -> void:
     var delta := to - from
@@ -89,10 +145,11 @@ func _muzzle_flash(position: Vector3) -> void:
 
 func _make_feedback() -> void:
     var layer := CanvasLayer.new()
-    layer.layer = 4
+    layer.layer = 21
     add_child(layer)
     feedback = Label.new()
-    feedback.position = Vector2(550, 388)
+    feedback.set_anchors_preset(Control.PRESET_CENTER)
+    feedback.position = Vector2(-95, 45)
     feedback.size = Vector2(190, 30)
     feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     feedback.add_theme_font_size_override("font_size", 13)
