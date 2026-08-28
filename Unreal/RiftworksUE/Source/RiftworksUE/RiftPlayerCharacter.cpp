@@ -4,13 +4,30 @@
 
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
-#include "Components/SpotLightComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "EngineUtils.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Perception/AISense_Hearing.h"
 #include "TimerManager.h"
+
+namespace RiftPlayerPrivate
+{
+    ERiftAssemblyPartType ToAssemblyType(ERiftBuildPiece Piece)
+    {
+        switch (Piece)
+        {
+            case ERiftBuildPiece::Beam: return ERiftAssemblyPartType::Beam;
+            case ERiftBuildPiece::Wheel: return ERiftAssemblyPartType::Wheel;
+            case ERiftBuildPiece::MotorWheel: return ERiftAssemblyPartType::MotorWheel;
+            case ERiftBuildPiece::Platform:
+            default: return ERiftAssemblyPartType::Platform;
+        }
+    }
+}
 
 ARiftPlayerCharacter::ARiftPlayerCharacter()
 {
@@ -21,40 +38,44 @@ ARiftPlayerCharacter::ARiftPlayerCharacter()
     FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
     FirstPersonCamera->bUsePawnControlRotation = true;
 
+    // Keep the flashlight deliberately simple: one physically plausible spotlight.
+    // Volumetric scattering is intentionally very low so the player sees the world,
+    // not a giant white cone hanging in front of the camera.
     Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("PremiumFlashlight"));
     Flashlight->SetupAttachment(FirstPersonCamera);
-    Flashlight->SetRelativeLocation(FVector(18.0f, 11.0f, -10.0f));
-    Flashlight->SetRelativeRotation(FRotator(-1.5f, 0.7f, 0.0f));
+    Flashlight->SetRelativeLocation(FVector(14.0f, 9.0f, -8.0f));
+    Flashlight->SetRelativeRotation(FRotator(-0.8f, 0.3f, 0.0f));
     Flashlight->IntensityUnits = ELightUnits::Lumens;
-    Flashlight->Intensity = 3400.0f;
-    Flashlight->AttenuationRadius = 3600.0f;
-    Flashlight->InnerConeAngle = 9.0f;
-    Flashlight->OuterConeAngle = 27.0f;
-    Flashlight->SourceRadius = 2.5f;
-    Flashlight->SoftSourceRadius = 5.5f;
+    Flashlight->SetIntensity(1550.0f);
+    Flashlight->SetAttenuationRadius(5200.0f);
+    Flashlight->SetInnerConeAngle(13.0f);
+    Flashlight->SetOuterConeAngle(24.0f);
+    Flashlight->SetSourceRadius(1.4f);
+    Flashlight->SetSoftSourceRadius(3.0f);
     Flashlight->bUseInverseSquaredFalloff = true;
     Flashlight->CastShadows = true;
-    Flashlight->VolumetricScatteringIntensity = 2.2f;
+    Flashlight->SetVolumetricScatteringIntensity(0.12f);
     Flashlight->bUseTemperature = true;
-    Flashlight->Temperature = 4450.0f;
+    Flashlight->SetTemperature(5000.0f);
 
     MuzzleFlash = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlash"));
     MuzzleFlash->SetupAttachment(FirstPersonCamera);
     MuzzleFlash->SetRelativeLocation(FVector(55.0f, 12.0f, -12.0f));
     MuzzleFlash->IntensityUnits = ELightUnits::Lumens;
-    MuzzleFlash->Intensity = 0.0f;
-    MuzzleFlash->AttenuationRadius = 550.0f;
-    MuzzleFlash->SourceRadius = 4.0f;
-    MuzzleFlash->LightColor = FColor(255, 177, 94);
-    MuzzleFlash->VolumetricScatteringIntensity = 2.5f;
+    MuzzleFlash->SetIntensity(0.0f);
+    MuzzleFlash->SetAttenuationRadius(500.0f);
+    MuzzleFlash->SetSourceRadius(3.0f);
+    MuzzleFlash->SetLightColor(FColor(255, 177, 94));
+    MuzzleFlash->SetVolumetricScatteringIntensity(0.15f);
     MuzzleFlash->CastShadows = true;
 
     bUseControllerRotationYaw = true;
     GetCharacterMovement()->bOrientRotationToMovement = false;
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-    GetCharacterMovement()->MaxWalkSpeedCrouched = 220.0f;
+    GetCharacterMovement()->MaxWalkSpeedCrouched = 205.0f;
     GetCharacterMovement()->BrakingDecelerationWalking = 1500.0f;
     GetCharacterMovement()->AirControl = 0.35f;
+    GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
 
     GetMesh()->SetOwnerNoSee(true);
     GetMesh()->SetCastHiddenShadow(true);
@@ -66,6 +87,11 @@ void ARiftPlayerCharacter::BeginPlay()
     Super::BeginPlay();
     FirstPersonCamera->SetFieldOfView(FieldOfView);
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
+    if (GetMesh())
+    {
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+    }
     SetFlashlightEnabled(bFlashlightOn && FlashlightBattery > 0.0f);
 }
 
@@ -82,6 +108,10 @@ void ARiftPlayerCharacter::Tick(float DeltaSeconds)
         }
     }
 
+    if (bBuildMode)
+    {
+        UpdateBuildPreview();
+    }
     UpdateInteractionTrace();
     UpdateFallbackAnimation();
 }
@@ -107,6 +137,13 @@ void ARiftPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction(TEXT("SecureHeavy"), IE_Pressed, this, &ARiftPlayerCharacter::SecureHeavyPressed);
     PlayerInputComponent->BindAction(TEXT("SaveGame"), IE_Pressed, this, &ARiftPlayerCharacter::SavePressed);
     PlayerInputComponent->BindAction(TEXT("LoadGame"), IE_Pressed, this, &ARiftPlayerCharacter::LoadPressed);
+
+    PlayerInputComponent->BindAction(TEXT("BuildToggle"), IE_Pressed, this, &ARiftPlayerCharacter::BuildTogglePressed);
+    PlayerInputComponent->BindAction(TEXT("BuildNext"), IE_Pressed, this, &ARiftPlayerCharacter::BuildNextPressed);
+    PlayerInputComponent->BindAction(TEXT("BuildPrev"), IE_Pressed, this, &ARiftPlayerCharacter::BuildPrevPressed);
+    PlayerInputComponent->BindAction(TEXT("BuildRotate"), IE_Pressed, this, &ARiftPlayerCharacter::BuildRotatePressed);
+    PlayerInputComponent->BindAction(TEXT("BuildAnchor"), IE_Pressed, this, &ARiftPlayerCharacter::BuildAnchorPressed);
+    PlayerInputComponent->BindAction(TEXT("BuildPlace"), IE_Pressed, this, &ARiftPlayerCharacter::BuildPlacePressed);
 }
 
 void ARiftPlayerCharacter::MoveForward(float Value)
@@ -137,6 +174,10 @@ void ARiftPlayerCharacter::LookUp(float Value)
 
 void ARiftPlayerCharacter::StartSprint()
 {
+    if (bIsCrouched)
+    {
+        return;
+    }
     GetCharacterMovement()->MaxWalkSpeed = CarriedSalvage ? WalkSpeed * 0.72f : SprintSpeed;
 }
 
@@ -159,6 +200,17 @@ void ARiftPlayerCharacter::SetFlashlightEnabled(bool bEnabled)
 
 void ARiftPlayerCharacter::UpdateInteractionTrace()
 {
+    if (bBuildMode)
+    {
+        const UEnum* Enum = StaticEnum<ERiftBuildPiece>();
+        const FString Name = Enum ? Enum->GetNameStringByValue(static_cast<int64>(SelectedBuildPiece)) : TEXT("Piece");
+        CurrentInteractionText = FText::FromString(FString::Printf(
+            TEXT("BUILD: %s | RMB place | wheel piece | R rotate | Q anchor %s | B exit"),
+            *Name,
+            bBuildAnchored ? TEXT("ON") : TEXT("OFF")));
+        return;
+    }
+
     CurrentInteractionText = FText::GetEmpty();
     if (!FirstPersonCamera || !GetWorld())
     {
@@ -181,7 +233,7 @@ void ARiftPlayerCharacter::UpdateInteractionTrace()
 
 void ARiftPlayerCharacter::InteractPressed()
 {
-    if (!FirstPersonCamera || !GetWorld())
+    if (bBuildMode || !FirstPersonCamera || !GetWorld())
     {
         return;
     }
@@ -202,7 +254,7 @@ void ARiftPlayerCharacter::InteractPressed()
 
 void ARiftPlayerCharacter::FirePressed()
 {
-    if (!FirstPersonCamera || !GetWorld())
+    if (bBuildMode || !FirstPersonCamera || !GetWorld())
     {
         return;
     }
@@ -218,9 +270,9 @@ void ARiftPlayerCharacter::FirePressed()
     }
     GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
 
-    MuzzleFlash->SetIntensity(5200.0f);
+    MuzzleFlash->SetIntensity(2600.0f);
     GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
-    GetWorldTimerManager().SetTimer(MuzzleFlashTimer, this, &ARiftPlayerCharacter::EndMuzzleFlash, 0.055f, false);
+    GetWorldTimerManager().SetTimer(MuzzleFlashTimer, this, &ARiftPlayerCharacter::EndMuzzleFlash, 0.045f, false);
 
     if (Hit.GetActor())
     {
@@ -233,6 +285,7 @@ void ARiftPlayerCharacter::FirePressed()
     {
         bAttackAnimationLocked = true;
         CurrentFallbackAnimation = PistolShootAnimation;
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->PlayAnimation(PistolShootAnimation, false);
         GetWorldTimerManager().ClearTimer(AttackAnimationTimer);
         GetWorldTimerManager().SetTimer(AttackAnimationTimer, this, &ARiftPlayerCharacter::EndAttackAnimation, FMath::Max(0.15f, PistolShootAnimation->GetPlayLength()), false);
@@ -274,16 +327,17 @@ void ARiftPlayerCharacter::UpdateFallbackAnimation()
     }
     else if (Speed < WalkSpeed * 1.15f)
     {
-        Desired = WalkAnimation;
+        Desired = WalkAnimation ? WalkAnimation.Get() : RunAnimation.Get();
     }
     else
     {
-        Desired = RunAnimation;
+        Desired = RunAnimation ? RunAnimation.Get() : WalkAnimation.Get();
     }
 
     if (Desired && Desired != CurrentFallbackAnimation)
     {
         CurrentFallbackAnimation = Desired;
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->PlayAnimation(Desired, true);
     }
 }
@@ -293,11 +347,181 @@ void ARiftPlayerCharacter::ToggleCrouch()
     if (bIsCrouched)
     {
         UnCrouch();
+        FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
+        GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
     }
     else
     {
         Crouch();
+        FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 42.0f));
+        GetCharacterMovement()->MaxWalkSpeed = GetCharacterMovement()->MaxWalkSpeedCrouched;
     }
+}
+
+void ARiftPlayerCharacter::BuildTogglePressed()
+{
+    ToggleBuildMode();
+}
+
+void ARiftPlayerCharacter::BuildNextPressed()
+{
+    if (bBuildMode)
+    {
+        CycleBuildPiece(1);
+    }
+}
+
+void ARiftPlayerCharacter::BuildPrevPressed()
+{
+    if (bBuildMode)
+    {
+        CycleBuildPiece(-1);
+    }
+}
+
+void ARiftPlayerCharacter::BuildRotatePressed()
+{
+    if (bBuildMode)
+    {
+        RotateBuildPreview();
+    }
+}
+
+void ARiftPlayerCharacter::BuildAnchorPressed()
+{
+    if (bBuildMode)
+    {
+        ToggleBuildAnchor();
+    }
+}
+
+void ARiftPlayerCharacter::BuildPlacePressed()
+{
+    if (bBuildMode)
+    {
+        PlaceBuildPiece();
+    }
+}
+
+void ARiftPlayerCharacter::ToggleBuildMode()
+{
+    bBuildMode = !bBuildMode;
+    if (bBuildMode)
+    {
+        RecreateBuildPreview();
+    }
+    else if (BuildPreview)
+    {
+        BuildPreview->Destroy();
+        BuildPreview = nullptr;
+    }
+    BP_OnBuildModeChanged(bBuildMode, SelectedBuildPiece, bBuildAnchored);
+}
+
+void ARiftPlayerCharacter::CycleBuildPiece(int32 Direction)
+{
+    int32 Value = static_cast<int32>(SelectedBuildPiece);
+    Value = (Value + (Direction >= 0 ? 1 : -1) + 4) % 4;
+    SelectedBuildPiece = static_cast<ERiftBuildPiece>(Value);
+    RecreateBuildPreview();
+    BP_OnBuildModeChanged(bBuildMode, SelectedBuildPiece, bBuildAnchored);
+}
+
+void ARiftPlayerCharacter::RotateBuildPreview()
+{
+    BuildYaw = FMath::Fmod(BuildYaw + BuildRotationStep, 360.0f);
+    if (BuildPreview)
+    {
+        BuildPreview->SetActorRotation(FRotator(0.0f, BuildYaw, 0.0f));
+    }
+}
+
+void ARiftPlayerCharacter::ToggleBuildAnchor()
+{
+    bBuildAnchored = !bBuildAnchored;
+    BP_OnBuildModeChanged(bBuildMode, SelectedBuildPiece, bBuildAnchored);
+}
+
+void ARiftPlayerCharacter::RecreateBuildPreview()
+{
+    if (!GetWorld() || !bBuildMode)
+    {
+        return;
+    }
+    if (BuildPreview)
+    {
+        BuildPreview->Destroy();
+        BuildPreview = nullptr;
+    }
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    BuildPreview = GetWorld()->SpawnActor<ARiftAssemblyPart>(ARiftAssemblyPart::StaticClass(), GetActorLocation(), FRotator::ZeroRotator, Params);
+    if (BuildPreview)
+    {
+        BuildPreview->PartType = RiftPlayerPrivate::ToAssemblyType(SelectedBuildPiece);
+        BuildPreview->ConfigurePart();
+        BuildPreview->SetActorEnableCollision(false);
+        if (BuildPreview->PhysicsMesh)
+        {
+            BuildPreview->PhysicsMesh->SetSimulatePhysics(false);
+            BuildPreview->PhysicsMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        }
+    }
+    UpdateBuildPreview();
+}
+
+void ARiftPlayerCharacter::UpdateBuildPreview()
+{
+    if (!BuildPreview || !FirstPersonCamera || !GetWorld())
+    {
+        return;
+    }
+
+    const FVector Start = FirstPersonCamera->GetComponentLocation();
+    const FVector End = Start + FirstPersonCamera->GetForwardVector() * BuildDistance;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftBuildTrace), false, this);
+    Params.AddIgnoredActor(BuildPreview);
+    if (CarriedSalvage)
+    {
+        Params.AddIgnoredActor(CarriedSalvage);
+    }
+
+    FVector Target = End;
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        Target = Hit.ImpactPoint + Hit.ImpactNormal * 12.0f;
+    }
+    Target.X = FMath::GridSnap(Target.X, BuildGridSize);
+    Target.Y = FMath::GridSnap(Target.Y, BuildGridSize);
+    Target.Z = FMath::GridSnap(Target.Z, BuildGridSize);
+    BuildPreview->SetActorLocationAndRotation(Target, FRotator(0.0f, BuildYaw, 0.0f));
+}
+
+bool ARiftPlayerCharacter::PlaceBuildPiece()
+{
+    if (!bBuildMode || !BuildPreview || !GetWorld())
+    {
+        return false;
+    }
+
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    ARiftAssemblyPart* Part = GetWorld()->SpawnActor<ARiftAssemblyPart>(ARiftAssemblyPart::StaticClass(), BuildPreview->GetActorTransform(), Params);
+    if (!Part)
+    {
+        return false;
+    }
+    Part->PartType = RiftPlayerPrivate::ToAssemblyType(SelectedBuildPiece);
+    Part->ConfigurePart();
+    Part->SetActorEnableCollision(true);
+    if (Part->PhysicsMesh)
+    {
+        Part->PhysicsMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Part->PhysicsMesh->SetSimulatePhysics(!bBuildAnchored);
+    }
+    RecreateBuildPreview();
+    return true;
 }
 
 void ARiftPlayerCharacter::DropHeavyPressed()
@@ -452,6 +676,10 @@ float ARiftPlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& D
     {
         BP_OnDied();
         DropHeavySalvage();
+        if (bBuildMode)
+        {
+            ToggleBuildMode();
+        }
         ARiftBaseBeacon* Base = FindNearbyBase(100000000.0f);
         SetActorLocation(Base ? Base->GetActorLocation() + FVector(0.0f, 0.0f, 180.0f) : FVector(0.0f, 0.0f, 220.0f));
         GetCharacterMovement()->StopMovementImmediately();
