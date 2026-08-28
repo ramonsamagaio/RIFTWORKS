@@ -64,12 +64,21 @@ Every major design decision must be evaluated through a solo-dev lens. Reuse is 
 
 ## 4. Perspective and controls
 
-The current prototype uses **third-person** because it supports visible equipment, humanoid animation reuse, vehicles and spatial reading of player-built machines.
+RIFTWORKS is a **first-person game**. This is a locked project decision, not a temporary prototype preference.
 
-Camera is not a sacred design constraint yet. The vertical slice may test alternatives if they clearly improve the experience, but no core system should require a camera switch.
+First-person is central to the intended experience because it strengthens:
 
-The movement target is grounded, responsive and readable rather than simulation-heavy.
+- the physicality of scavenging and manipulating machinery;
+- the scale and terror of Colossi;
+- immersion in darkness, flashlight use and underground exploration;
+- precision when wiring, assembling and operating player-built systems;
+- the feeling that the player personally inhabits the base and infrastructure they create.
 
+The player body may still exist invisibly for collision, shadows and systemic interactions, but normal gameplay presentation remains first-person. Core systems should be designed around this perspective rather than requiring a third-person camera.
+
+The movement target is grounded, responsive and readable rather than simulation-heavy. Camera motion should remain restrained: subtle head movement is welcome, but excessive bob, sway or forced cinematic motion must not interfere with long play sessions.
+
+Desktop gameplay should launch in **fullscreen** by default. UI and rendering must scale cleanly across common desktop aspect ratios and resolutions.
 ---
 
 ## 5. World premise
