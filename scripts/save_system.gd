@@ -2,7 +2,7 @@ class_name RiftSaveSystem
 extends Node
 
 const SAVE_PATH := "user://riftworks_save.json"
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 
 var player: RiftPlayer
 var base_system: BaseSystem
@@ -44,13 +44,16 @@ func save_game() -> void:
         "scrap": player.scrap,
         "components": player.components.duplicate(true)
     }
-    var base_data = null
+    var base_data: Variant = null
     if is_instance_valid(base_system) and is_instance_valid(base_system.current_beacon):
-        base_data = {"position": _v3(base_system.current_beacon.global_position)}
+        base_data = {
+            "position": _v3(base_system.current_beacon.global_position),
+            "storage": base_system.storage.duplicate(true)
+        }
 
     var data := {
         "version": SAVE_VERSION,
-        "world_seed": 731942,
+        "world_seed": RiftWorldState.WORLD_SEED,
         "player": player_data,
         "base": base_data
     }
@@ -60,7 +63,7 @@ func save_game() -> void:
         return
     file.store_string(JSON.stringify(data, "  "))
     file.close()
-    _message("SAVED  |  player + inventory + claimed base")
+    _message("SAVED  |  player + field inventory + base storage + claimed base")
 
 func load_game() -> void:
     if not is_instance_valid(player) or not FileAccess.file_exists(SAVE_PATH):
@@ -70,27 +73,33 @@ func load_game() -> void:
     if file == null:
         _message("LOAD FAILED")
         return
-    var parsed = JSON.parse_string(file.get_as_text())
+    var parsed: Variant = JSON.parse_string(file.get_as_text())
     file.close()
     if not parsed is Dictionary or not parsed.has("player"):
         _message("SAVE IS INVALID")
         return
-    var p: Dictionary = parsed["player"]
-    player.global_position = _from_v3(p.get("position", [0,0,44]))
+    var data := parsed as Dictionary
+    var p: Dictionary = data["player"] as Dictionary
+    player.global_position = _from_v3(p.get("position", [0,0,44]) as Array)
     player.velocity = Vector3.ZERO
     player.yaw = float(p.get("yaw",0.0))
     player.pitch = float(p.get("pitch",-0.16))
     player.health = float(p.get("health",100.0))
     player.flashlight_battery = float(p.get("flashlight_battery",100.0))
     player.scrap = int(p.get("scrap",0))
-    var loaded_components = p.get("components", {})
+    var loaded_components: Variant = p.get("components", {})
     if loaded_components is Dictionary:
-        player.components = loaded_components.duplicate(true)
+        player.components = (loaded_components as Dictionary).duplicate(true)
     player.set_flashlight(bool(p.get("flashlight_on",true)))
 
-    var base_data = parsed.get("base", null)
-    if base_data is Dictionary and base_data.has("position") and is_instance_valid(base_system):
-        base_system.restore_base(_from_v3(base_data["position"]))
+    var base_data: Variant = data.get("base", null)
+    if base_data is Dictionary and (base_data as Dictionary).has("position") and is_instance_valid(base_system):
+        var base_dict := base_data as Dictionary
+        var loaded_storage: Dictionary = {}
+        var raw_storage: Variant = base_dict.get("storage", {})
+        if raw_storage is Dictionary:
+            loaded_storage = (raw_storage as Dictionary).duplicate(true)
+        base_system.restore_base(_from_v3(base_dict["position"] as Array), loaded_storage)
     _message("LOADED")
 
 func _make_feedback() -> void:
@@ -98,8 +107,9 @@ func _make_feedback() -> void:
     layer.layer = 5
     add_child(layer)
     feedback = Label.new()
-    feedback.position = Vector2(18, 650)
-    feedback.size = Vector2(440, 26)
+    feedback.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+    feedback.position = Vector2(22,-76)
+    feedback.size = Vector2(520,26)
     feedback.add_theme_font_size_override("font_size", 13)
     feedback.add_theme_color_override("font_color", Color("8ca0ad"))
     feedback.text = "F5 save  |  F9 load"
