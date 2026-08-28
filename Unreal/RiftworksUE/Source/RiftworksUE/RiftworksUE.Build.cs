@@ -13,7 +13,6 @@ public class RiftworksUE : ModuleRules
             "CoreUObject",
             "Engine",
             "InputCore",
-            "EnhancedInput",
             "AIModule",
             "NavigationSystem",
             "GameplayTasks",
