@@ -1,5 +1,5 @@
 class_name SalvageProp
-extends StaticBody3D
+extends RigidBody3D
 
 var item_id := "scrap"
 var display_name := "Salvage"
@@ -16,6 +16,11 @@ func configure(p_item_id: String, p_name: String, p_amount: int, p_mass_class :=
 
 func _ready() -> void:
     add_to_group("salvage")
+    mass = 1.0 if mass_class <= 0 else 28.0
+    freeze = mass_class <= 0
+    continuous_cd = mass_class > 0
+    linear_damp = 1.25 if mass_class > 0 else 0.0
+    angular_damp = 2.2 if mass_class > 0 else 0.0
     _build_visual()
     _build_collision()
 
@@ -25,6 +30,9 @@ func _mat(color: Color, metallic := 0.0, roughness := 0.7) -> StandardMaterial3D
     mat.metallic = metallic
     mat.roughness = roughness
     return mat
+
+func _set_gi(mi: MeshInstance3D) -> void:
+    mi.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC if mass_class > 0 else GeometryInstance3D.GI_MODE_STATIC
 
 func _build_visual() -> void:
     match item_id:
@@ -38,7 +46,7 @@ func _build_visual() -> void:
             cyl.material = _mat(Color("31363b"), 0.75, 0.42)
             motor.mesh = cyl
             motor.rotation_degrees.z = 90.0
-            motor.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+            _set_gi(motor)
             add_child(motor)
             _add_box(Vector3(0.42, 0, 0), Vector3(0.15, 0.28, 0.28), accent, 0.8)
         "battery_cell":
@@ -54,6 +62,7 @@ func _build_visual() -> void:
             torus.material = _mat(Color("111418"), 0.05, 0.92)
             ring.mesh = torus
             ring.rotation_degrees.x = 90.0
+            _set_gi(ring)
             add_child(ring)
         "electronics":
             _add_box(Vector3.ZERO, Vector3(0.7, 0.18, 0.52), Color("27332d"), 0.25)
@@ -76,6 +85,7 @@ func _build_visual() -> void:
             crystal_mat.emission_energy_multiplier = 2.8
             crystal_mesh.material = crystal_mat
             crystal.mesh = crystal_mesh
+            _set_gi(crystal)
             add_child(crystal)
             _add_box(Vector3(0,-0.37,0), Vector3(0.72,0.16,0.72), Color("282b35"), 0.6)
             var glow := OmniLight3D.new()
@@ -95,7 +105,7 @@ func _add_box(pos: Vector3, size: Vector3, color: Color, metallic := 0.0) -> voi
     box.size = size
     box.material = _mat(color, metallic)
     mi.mesh = box
-    mi.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+    _set_gi(mi)
     add_child(mi)
 
 func _build_collision() -> void:
@@ -108,11 +118,11 @@ func _build_collision() -> void:
 func get_prompt_text() -> String:
     if mass_class <= 0:
         return "[E] Take %s  x%d" % [display_name, amount]
-    return "[E] Lift %s  x%d  |  heavy salvage" % [display_name, amount]
+    return "[E] Lift %s  x%d  |  %.0f kg cargo" % [display_name, amount, mass]
 
 func interact(player: Node) -> void:
     if mass_class > 0:
-        var carry_nodes := get_tree().get_nodes_in_group("carry_system")
+        var carry_nodes: Array[Node] = get_tree().get_nodes_in_group("carry_system")
         if not carry_nodes.is_empty() and carry_nodes[0].has_method("pickup_heavy"):
             carry_nodes[0].call("pickup_heavy", self)
         return
