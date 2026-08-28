@@ -157,8 +157,15 @@ func get_prompt_text() -> String:
         Kind.BATTERY:
             return "[E] %s  %s  %.2f / %.2f kWh" % [display_name, state, charge_kwh, capacity_kwh]
         Kind.CONSUMER:
-            return "[E] %s  %s  %.1f kW" % [display_name, state, consumption_kw]
+            return "[E] %s  %s  %.1f kW  |  P%d  |  SHIFT+E priority" % [display_name, state, consumption_kw, priority]
     return "[E] %s" % display_name
 
 func interact(_player: Node) -> void:
+    if kind == Kind.CONSUMER and Input.is_key_pressed(KEY_SHIFT):
+        priority += 1
+        if priority > 5:
+            priority = 1
+        if is_instance_valid(grid):
+            grid.force_recompute()
+        return
     set_signal(not enabled)
