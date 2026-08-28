@@ -1318,7 +1318,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 ## Project foundation
 - [x] Godot project initialized.
 - [x] Main playable scene exists.
-- [x] Basic third-person placeholder movement/camera.
+- [x] First-person movement/camera foundation.
 - [ ] Production character controller.
 - [ ] Input rebinding/settings UI.
 - [ ] Save/load architecture.
