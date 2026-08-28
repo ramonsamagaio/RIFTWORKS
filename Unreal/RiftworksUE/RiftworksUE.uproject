@@ -2,7 +2,7 @@
   "FileVersion": 3,
   "EngineAssociation": "5.8",
   "Category": "Games",
-  "Description": "RIFTWORKS Unreal Engine migration. Blueprint-facing gameplay with a minimal C++ runtime foundation.",
+  "Description": "RIFTWORKS Unreal Engine 5.8 migration. Blueprint-facing gameplay with a minimal native runtime foundation.",
   "Modules": [
     {
       "Name": "RiftworksUE",
@@ -11,10 +11,7 @@
     }
   ],
   "Plugins": [
-    { "Name": "EnhancedInput", "Enabled": true },
-    { "Name": "PCG", "Enabled": true },
     { "Name": "PythonScriptPlugin", "Enabled": true },
-    { "Name": "EditorScriptingUtilities", "Enabled": true },
-    { "Name": "InterchangeEditor", "Enabled": true }
+    { "Name": "EditorScriptingUtilities", "Enabled": true }
   ]
 }
