@@ -18,7 +18,9 @@ func _ready() -> void:
     await get_tree().process_frame
     await get_tree().process_frame
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
-    grid = get_tree().get_first_node_in_group("power_grid") as PowerGridSystem
+    var runtime_grid := get_parent().get_node_or_null("PowerGrid")
+    if runtime_grid is PowerGridSystem:
+        grid = runtime_grid as PowerGridSystem
     var old_hud := get_parent().get_node_or_null("HUD")
     if is_instance_valid(old_hud):
         old_hud.visible = false
