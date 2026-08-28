@@ -8,6 +8,8 @@ var ui: Label
 func _ready() -> void:
     await get_tree().process_frame
     player = get_tree().get_first_node_in_group("player") as RiftPlayer
+    if is_instance_valid(player) and not player.died.is_connected(_on_player_died):
+        player.died.connect(_on_player_died)
     _make_ui()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -22,7 +24,7 @@ func _make_ui() -> void:
     add_child(layer)
     ui = Label.new()
     ui.position = Vector2(18, 620)
-    ui.size = Vector2(380, 32)
+    ui.size = Vector2(520, 32)
     ui.add_theme_font_size_override("font_size", 14)
     ui.add_theme_color_override("font_color", Color("c5c9b1"))
     ui.text = "C claim this location as base (6 scrap + electronics)"
@@ -50,6 +52,13 @@ func restore_base(position: Vector3) -> void:
     if is_instance_valid(player):
         player.set_meta("respawn_position", position + Vector3(0,0.2,2.0))
         player.set_meta("base_claimed", true)
+
+func _on_player_died() -> void:
+    if not is_instance_valid(player) or not player.has_meta("respawn_position"):
+        return
+    player.global_position = player.get_meta("respawn_position") as Vector3
+    player.velocity = Vector3.ZERO
+    _message("Returned to claimed base. Built infrastructure remains yours.")
 
 func _make_beacon(pos: Vector3) -> StaticBody3D:
     var body := StaticBody3D.new()
