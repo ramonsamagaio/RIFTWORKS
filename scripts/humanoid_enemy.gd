@@ -22,14 +22,22 @@ var right_leg: Node3D
 var left_arm: Node3D
 var right_arm: Node3D
 var walk_phase := 0.0
+var is_ranged := false
+var shoot_cooldown := 0.0
+var muzzle_timer := 0.0
+var muzzle_flash: OmniLight3D
+var strafe_sign := 1.0
 
 func _ready() -> void:
-    rng.seed = get_instance_id()
+    rng.seed = int(get_instance_id())
+    is_ranged = rng.randf() < 0.68
+    strafe_sign = -1.0 if rng.randf() < 0.5 else 1.0
     patrol_origin = global_position
     _build_collision()
     _build_visual()
     _pick_patrol_target()
     signature_scan_timer = rng.randf_range(0.0,1.2)
+    shoot_cooldown = rng.randf_range(0.2,1.0)
 
 func _build_collision() -> void:
     var collision := CollisionShape3D.new()
@@ -46,7 +54,7 @@ func _mat(color: Color, roughness := 0.8) -> StandardMaterial3D:
     mat.roughness = roughness
     return mat
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
+func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
     var mi := MeshInstance3D.new()
     mi.position = pos
     var mesh := BoxMesh.new()
@@ -54,6 +62,7 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
     mesh.material = _mat(color)
     mi.mesh = mesh
     parent.add_child(mi)
+    return mi
 
 func _build_visual() -> void:
     visual_root = Node3D.new()
@@ -73,8 +82,24 @@ func _build_visual() -> void:
     _box(left_arm, Vector3(0, -0.25, 0), Vector3(0.21, 0.66, 0.23), coat)
     _box(right_arm, Vector3(0, -0.25, 0), Vector3(0.21, 0.66, 0.23), coat)
 
+    if is_ranged:
+        _box(right_arm, Vector3(0.0, -0.48, -0.25), Vector3(0.15, 0.16, 0.72), Color("171a1d"))
+        muzzle_flash = OmniLight3D.new()
+        muzzle_flash.position = Vector3(0.0, -0.48, -0.66)
+        muzzle_flash.light_color = Color("ffd29a")
+        muzzle_flash.light_energy = 8.0
+        muzzle_flash.omni_range = 7.0
+        muzzle_flash.light_volumetric_fog_energy = 1.2
+        muzzle_flash.visible = false
+        right_arm.add_child(muzzle_flash)
+
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)
+    shoot_cooldown = maxf(0.0, shoot_cooldown - delta)
+    muzzle_timer = maxf(0.0, muzzle_timer - delta)
+    if is_instance_valid(muzzle_flash):
+        muzzle_flash.visible = muzzle_timer > 0.0
+
     signature_scan_timer -= delta
     if signature_scan_timer <= 0.0:
         signature_scan_timer = 1.1 + rng.randf_range(0.0,0.5)
@@ -83,6 +108,7 @@ func _physics_process(delta: float) -> void:
 
     if not is_instance_valid(target):
         _patrol(delta)
+        _apply_gravity_and_move(delta)
         return
 
     var distance := global_position.distance_to(target.global_position)
@@ -92,23 +118,30 @@ func _physics_process(delta: float) -> void:
     if distance < 9.0:
         detect_range = maxf(detect_range, 18.0)
 
-    if distance <= detect_range and _has_line_of_sight():
+    var sees_target := distance <= detect_range and _has_line_of_sight()
+    if sees_target:
         alerted = true
         investigating_signature = false
     elif alerted and distance > 52.0:
         alerted = false
 
     if alerted:
-        _chase(delta, distance)
+        if is_ranged and distance <= 27.0 and sees_target:
+            _ranged_combat(delta, distance)
+        else:
+            _chase(delta, distance)
     elif investigating_signature:
         _investigate_signature(delta)
     else:
         _patrol(delta)
 
+    _apply_gravity_and_move(delta)
+    _animate(delta)
+
+func _apply_gravity_and_move(delta: float) -> void:
     if not is_on_floor():
         velocity.y -= 23.0 * delta
     move_and_slide()
-    _animate(delta)
 
 func _scan_power_signatures() -> void:
     var best_score := 0.0
@@ -133,12 +166,14 @@ func _scan_power_signatures() -> void:
         investigation_target = best_position
 
 func _has_line_of_sight() -> bool:
+    if not is_instance_valid(target):
+        return false
     var from := global_position + Vector3(0, 1.45, 0)
     var to := target.global_position + Vector3(0, 1.25, 0)
     var query := PhysicsRayQueryParameters3D.create(from, to)
     query.exclude = [self]
-    var hit := get_world_3d().direct_space_state.intersect_ray(query)
-    return not hit.is_empty() and hit.collider == target
+    var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+    return not hit.is_empty() and hit.get("collider") == target
 
 func _chase(_delta: float, distance: float) -> void:
     var dir := target.global_position - global_position
@@ -153,6 +188,40 @@ func _chase(_delta: float, distance: float) -> void:
         if attack_cooldown <= 0.0:
             target.apply_damage(attack_damage)
             attack_cooldown = 1.15
+
+func _ranged_combat(_delta: float, distance: float) -> void:
+    var toward := target.global_position - global_position
+    toward.y = 0.0
+    if toward.length_squared() < 0.01:
+        return
+    toward = toward.normalized()
+    var right := Vector3(-toward.z, 0.0, toward.x)
+
+    var move := Vector3.ZERO
+    if distance > 15.5:
+        move += toward
+    elif distance < 7.0:
+        move -= toward * 0.85
+    else:
+        move += right * strafe_sign * 0.38
+    move = move.normalized()
+    velocity.x = move.x * move_speed * 0.75
+    velocity.z = move.z * move_speed * 0.75
+
+    visual_root.rotation.y = lerp_angle(visual_root.rotation.y, atan2(toward.x, toward.z), 0.18)
+    if shoot_cooldown <= 0.0:
+        _shoot(distance)
+        shoot_cooldown = rng.randf_range(0.85, 1.55)
+        if rng.randf() < 0.25:
+            strafe_sign *= -1.0
+
+func _shoot(distance: float) -> void:
+    muzzle_timer = 0.065
+    var distance_factor := clampf(1.0 - distance / 35.0, 0.28, 0.92)
+    var light_bonus := 0.16 if target.flashlight_on else 0.0
+    var hit_chance := clampf(0.34 + distance_factor * 0.34 + light_bonus, 0.25, 0.82)
+    if rng.randf() <= hit_chance:
+        target.apply_damage(rng.randf_range(5.0, 9.0))
 
 func _investigate_signature(_delta: float) -> void:
     var dir := investigation_target - global_position
@@ -185,13 +254,14 @@ func _pick_patrol_target() -> void:
 func _animate(delta: float) -> void:
     var flat_speed := Vector2(velocity.x, velocity.z).length()
     if flat_speed > 0.1:
-        visual_root.rotation.y = lerp_angle(visual_root.rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-8.0 * delta))
+        if not (alerted and is_ranged):
+            visual_root.rotation.y = lerp_angle(visual_root.rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-8.0 * delta))
         walk_phase += delta * (5.0 + flat_speed)
         var swing := sin(walk_phase) * 0.48
         left_leg.rotation.x = swing
         right_leg.rotation.x = -swing
         left_arm.rotation.x = -swing * 0.6
-        right_arm.rotation.x = swing * 0.6
+        right_arm.rotation.x = swing * 0.35 if is_ranged else swing * 0.6
 
 func take_damage(amount: float) -> void:
     health -= amount
