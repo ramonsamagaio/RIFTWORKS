@@ -108,9 +108,14 @@ func _build_collision() -> void:
 func get_prompt_text() -> String:
     if mass_class <= 0:
         return "[E] Take %s  x%d" % [display_name, amount]
-    return "[E] Recover %s  x%d" % [display_name, amount]
+    return "[E] Lift %s  x%d  |  heavy salvage" % [display_name, amount]
 
 func interact(player: Node) -> void:
+    if mass_class > 0:
+        var carry_nodes := get_tree().get_nodes_in_group("carry_system")
+        if not carry_nodes.is_empty() and carry_nodes[0].has_method("pickup_heavy"):
+            carry_nodes[0].call("pickup_heavy", self)
+        return
     if player.has_method("add_component"):
         player.add_component(item_id, amount)
         queue_free()
