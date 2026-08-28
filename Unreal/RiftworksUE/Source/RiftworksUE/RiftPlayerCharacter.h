@@ -11,6 +11,7 @@ class UPointLightComponent;
 class UAnimSequenceBase;
 class ARiftSalvageActor;
 class ARiftBaseBeacon;
+class ARiftAssemblyPart;
 
 UINTERFACE(BlueprintType)
 class RIFTWORKSUE_API URiftInteractable : public UInterface
@@ -28,6 +29,15 @@ public:
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="RIFTWORKS|Interaction")
     void Interact(class ARiftPlayerCharacter* Player);
+};
+
+UENUM(BlueprintType)
+enum class ERiftBuildPiece : uint8
+{
+    Platform,
+    Beam,
+    Wheel,
+    MotorWheel
 };
 
 UCLASS(Blueprintable)
@@ -72,7 +82,7 @@ public:
     bool bFlashlightOn = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Combat")
-    float RifleDamage = 22.0f;
+    float RifleDamage = 28.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Combat")
     float RifleRange = 15000.0f;
@@ -107,6 +117,28 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
     TObjectPtr<UAnimSequenceBase> PistolShootAnimation;
 
+    // --- Prototype construction mode. Native foundation, Blueprint-facing controls. ---
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    bool bBuildMode = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    ERiftBuildPiece SelectedBuildPiece = ERiftBuildPiece::Platform;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    bool bBuildAnchored = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    float BuildDistance = 900.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    float BuildGridSize = 25.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Build")
+    float BuildRotationStep = 15.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Build")
+    TObjectPtr<ARiftAssemblyPart> BuildPreview;
+
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Lighting")
     void SetFlashlightEnabled(bool bEnabled);
 
@@ -131,6 +163,21 @@ public:
     UFUNCTION(BlueprintPure, Category="RIFTWORKS|Base")
     ARiftBaseBeacon* FindNearbyBase(float Radius = 1400.0f) const;
 
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Build")
+    void ToggleBuildMode();
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Build")
+    void CycleBuildPiece(int32 Direction = 1);
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Build")
+    void RotateBuildPreview();
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Build")
+    void ToggleBuildAnchor();
+
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Build")
+    bool PlaceBuildPiece();
+
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnInventoryChanged();
 
@@ -149,6 +196,9 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnDied();
 
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnBuildModeChanged(bool bEnabled, ERiftBuildPiece Piece, bool bAnchored);
+
 protected:
     virtual void BeginPlay() override;
 
@@ -166,11 +216,20 @@ protected:
     void SecureHeavyPressed();
     void SavePressed();
     void LoadPressed();
+    void BuildTogglePressed();
+    void BuildNextPressed();
+    void BuildPrevPressed();
+    void BuildRotatePressed();
+    void BuildAnchorPressed();
+    void BuildPlacePressed();
     void UpdateInteractionTrace();
     void UpdateFallbackAnimation();
+    void UpdateBuildPreview();
+    void RecreateBuildPreview();
     void EndMuzzleFlash();
     void EndAttackAnimation();
 
+    float BuildYaw = 0.0f;
     bool bAttackAnimationLocked = false;
     TObjectPtr<UAnimSequenceBase> CurrentFallbackAnimation;
     FTimerHandle MuzzleFlashTimer;
