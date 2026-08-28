@@ -5,6 +5,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ARiftMannequinColossus::ARiftMannequinColossus()
@@ -77,7 +78,6 @@ void ARiftMannequinColossus::BeginPlay()
 
 void ARiftMannequinColossus::Tick(float DeltaSeconds)
 {
-    // ARiftColossus has its own early placeholder movement. We intentionally replace it here.
     ACharacter::Tick(DeltaSeconds);
 
     if (GetCharacterMovement()->MovementMode == MOVE_None)
