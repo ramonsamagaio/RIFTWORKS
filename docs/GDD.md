@@ -1321,7 +1321,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] First-person movement/camera foundation.
 - [ ] Production character controller.
 - [ ] Input rebinding/settings UI.
-- [ ] Save/load architecture.
+- [x] Save/load architecture.
 - [ ] Seeded world persistence architecture.
 
 ## Visual / darkness
@@ -1329,104 +1329,104 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Basic fog/night ambience.
 - [x] Basic flashlight with battery drain.
 - [x] Basic deployable floodlight.
-- [ ] Forward+ high-quality lighting pass.
-- [ ] Premium flashlight beam with projector/cookie.
-- [ ] Volumetric flashlight scattering.
-- [ ] High-quality soft dynamic shadows.
-- [ ] SSAO/SSIL/GI quality preset.
-- [ ] Exposure/tonemapping tuned for readable darkness.
-- [ ] Weather lighting variation.
-- [ ] Multiple functional light classes.
+- [x] Forward+ high-quality lighting pass.
+- [x] Premium flashlight beam with projector/cookie.
+- [x] Volumetric flashlight scattering.
+- [x] High-quality soft dynamic shadows.
+- [x] SSAO/SSIL/GI quality preset.
+- [x] Exposure/tonemapping tuned for readable darkness.
+- [x] Weather lighting variation.
+- [x] Multiple functional light classes.
 
 ## World generation
 - [x] Procedural-ish city blockout prototype.
 - [x] Empty urban atmosphere prototype.
 - [x] First underground descent/blockout.
 - [x] First deep chamber/blockout.
-- [ ] Seeded surface chunk generator.
+- [x] Seeded surface chunk generator.
 - [ ] Road graph.
-- [ ] District/POI rules.
-- [ ] Natural biome transitions.
-- [ ] Underground graph generator.
-- [ ] Metro modules.
-- [ ] Mine modules.
-- [ ] Cave modules.
-- [ ] Breach modules.
+- [x] District/POI rules.
+- [x] Natural biome transitions.
+- [x] Underground graph generator.
+- [x] Metro modules.
+- [x] Mine modules.
+- [x] Cave modules.
+- [x] Breach modules.
 - [ ] Streaming/chunk budgets.
 
 ## Scavenging / inventory
 - [x] Temporary abstract scavenge interaction.
 - [x] Basic scrap resource.
-- [ ] Physical salvage props.
-- [ ] Interaction raycast/highlight.
+- [x] Physical salvage props.
+- [x] Interaction raycast/highlight.
 - [ ] Inventory with weight/volume rules.
-- [ ] Carry heavy component interaction.
+- [x] Carry heavy component interaction.
 - [ ] Dismantling.
 - [ ] Salvage tiers/tools.
-- [ ] Transportable industrial components.
+- [x] Transportable industrial components.
 
 ## Power grid
 - [x] Prototype power readout concept.
-- [ ] Functional generator component.
-- [ ] Functional battery component.
-- [ ] Functional power consumer.
-- [ ] Power links/cables.
-- [ ] Grid generation/consumption calculation.
-- [ ] Battery charge/discharge.
-- [ ] Load priority.
-- [ ] Device powered/unpowered feedback.
-- [ ] Power signature.
-- [ ] Player-built blackout automation.
+- [x] Functional generator component.
+- [x] Functional battery component.
+- [x] Functional power consumer.
+- [x] Power links/cables.
+- [x] Grid generation/consumption calculation.
+- [x] Battery charge/discharge.
+- [x] Load priority.
+- [x] Device powered/unpowered feedback.
+- [x] Power signature.
+- [x] Player-built blackout automation.
 
 ## Functional Assembly System
 - [ ] Placement/snap system.
-- [ ] Structural platform.
+- [x] Structural platform.
 - [ ] Weld joint.
-- [ ] Hinge.
-- [ ] Wheel.
-- [ ] Motor.
-- [ ] Button/switch.
-- [ ] Signal link.
-- [ ] Sensor.
+- [x] Hinge.
+- [x] Wheel.
+- [x] Motor.
+- [x] Button/switch.
+- [x] Signal link.
+- [x] Sensor.
 - [ ] Slider/piston.
 - [ ] Rope/cable physical connection.
-- [ ] Blueprint serialization.
-- [ ] Blueprint reconstruction.
+- [x] Blueprint serialization.
+- [x] Blueprint reconstruction.
 
 ## Bases / logistics
-- [ ] Claim existing structure as base.
+- [x] Claim existing structure as base.
 - [ ] Base inventory.
 - [ ] Outposts.
-- [ ] Heavy salvage logistics.
-- [ ] Winch.
+- [x] Heavy salvage logistics.
+- [x] Winch.
 - [ ] Lift/elevator.
 - [ ] Rail/cart transport.
 - [ ] Conveyor/logistics system.
 
 ## Combat / AI
-- [ ] Basic weapon framework.
-- [ ] Reusable humanoid enemy controller.
+- [x] Basic weapon framework.
+- [x] Reusable humanoid enemy controller.
 - [ ] Humanoid perception of light/sound.
-- [ ] Humanoid ranged combat.
-- [ ] Simple drone/automaton.
+- [x] Humanoid ranged combat.
+- [x] Simple drone/automaton.
 - [ ] Simple non-humanoid creature.
-- [ ] Loot/harvesting from enemies.
+- [x] Loot/harvesting from enemies.
 
 ## Colossi
 - [x] Colossus-scale visual placeholder.
-- [ ] Functional roaming Colossus AI.
-- [ ] Distant audio/footstep presence.
-- [ ] Vulnerable zones.
+- [x] Functional roaming Colossus AI.
+- [x] Distant audio/footstep presence.
+- [x] Vulnerable zones.
 - [ ] Environmental interaction.
 - [ ] Engineered hunting support.
-- [ ] Harvestable Colossus component.
-- [ ] First component unlocks a new engineering property.
+- [x] Harvestable Colossus component.
+- [x] First component unlocks a new engineering property.
 
 ## Breach / fantasy engineering
-- [ ] First Breach zone.
-- [ ] Repulsion component.
-- [ ] Attraction component.
-- [ ] Luminance component.
+- [x] First Breach zone.
+- [x] Repulsion component.
+- [x] Attraction component.
+- [x] Luminance component.
 - [ ] Thermal/Cryo component.
 - [ ] Gravity component.
 - [ ] High-end Phase concept.
@@ -1436,10 +1436,10 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Battery display.
 - [x] Scrap display.
 - [x] Prototype grid-power display.
-- [ ] Interaction prompt.
-- [ ] Power-device status UI.
-- [ ] Inventory UI.
-- [ ] Build mode UI.
+- [x] Interaction prompt.
+- [x] Power-device status UI.
+- [x] Inventory UI.
+- [x] Build mode UI.
 - [ ] Blueprint UI.
 - [ ] Base/grid overview.
 
@@ -1448,17 +1448,17 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [ ] Flashlight/electrical interactions.
 - [ ] Generator loops.
 - [ ] Underground reverb/ambience.
-- [ ] Distant Colossus audio.
+- [x] Distant Colossus audio.
 - [ ] Dynamic darkness ambience.
 
 ## Milestone gate
 - [ ] The flashlight alone feels good enough to market in a GIF/video.
-- [ ] Generator -> power link -> battery/light works end-to-end.
-- [ ] Player scavenges a physical motor from a POI and installs it.
+- [x] Generator -> power link -> battery/light works end-to-end.
+- [x] Player scavenges a physical motor from a POI and installs it.
 - [ ] Player builds at least one useful machine from generic components.
-- [ ] Procedural surface -> underground expedition works end-to-end.
-- [ ] First humanoid encounter works with reusable rig architecture.
-- [ ] First Colossus can be seen, avoided, fought through preparation and harvested.
+- [x] Procedural surface -> underground expedition works end-to-end.
+- [x] First humanoid encounter works with reusable rig architecture.
+- [x] First Colossus can be seen, avoided, fought through preparation and harvested.
 
 ---
 
@@ -1470,9 +1470,15 @@ This checklist is part of the GDD and must be updated as implementation changes.
 
 ## Current implementation snapshot
 
-- First-person perspective is now a locked project decision; the player camera uses eye-height positioning, FPS FOV, subtle movement bob and an invisible shadow-only body to avoid self-clipping.
-- Desktop presentation defaults to true fullscreen at a 1920x1080 reference viewport and explicitly requests fullscreen at runtime outside headless CI.
-- The flashlight is mounted slightly off the camera axis so its beam reads as a held physical light rather than a perfectly centered camera spotlight.
-- Forward+ premium darkness stack remains active: dynamic flashlight shadows, projector cookie, volumetric fog interaction, AgX tonemapping, SSAO, SSIL and SDFGI.
-- Procedural surface streaming, procedural underground graph, physical salvage, power grid, logic links, FAS assembly, blueprints, Breach repulsion, humanoid threats, drones, Colossus weakpoints/harvest, base claiming and save/load are present in prototype form.
-- Godot CI strictly compiles every GDScript and boots the main scene on Godot 4.6.3 before changes are considered safe.
+- First-person perspective and fullscreen presentation are locked project decisions; the player uses an eye-height FPS camera, restrained head movement and a shadow-only body.
+- The darkness stack uses Forward+, dynamic soft flashlight shadows, projector cookie, volumetric fog, AgX tonemapping, SSAO, SSIL and SDFGI; weather and multiple functional light types now participate in the same visual language.
+- The fullscreen HUD is resolution-adaptive, replaces the old fixed 1280x720 debug panels, and includes an inventory overlay, engineering reference panel, centered interaction prompt and runtime grid status.
+- Surface streaming is deterministic and blends urban, industrial and woodland regions through continuous noise rather than abrupt chunk biome cuts.
+- The procedural underground graph is now dressed by depth family: metro infrastructure, mine supports, cave formations and Breach architecture/crystals, with drones and low-cost procedural Breach golems in deeper rooms.
+- Physical salvage is interactive and highlighted; heavy motors and Colossus parts are true RigidBody cargo that can fall, ride on player-built physics constructions, react to Breach forces, be carried manually or be pulled by a universal winch.
+- The power grid supports generation, consumption, storage, charge/discharge, player-controlled load priority, device feedback, detectable power signatures and logic-driven blackout behavior.
+- The FAS prototype provides platforms, beams, wheels, logic motor wheels, hinges, anchoring, sensors/buttons, signal links and blueprint save/rebuild; a universal winch extends the same sandbox into logistics rather than hardcoding one elevator recipe.
+- Breach engineering now includes repulsion, attraction and high-output luminance devices; all three can participate in player-built logic systems.
+- Humanoid enemies reuse one low-poly architecture and now include melee/ranged behavior, flashlight visibility response, power-signature investigation and muzzle flashes that reveal combatants in darkness.
+- The Walker Colossus roams, has targeted weak zones, drops physical harvest, and now produces synthesized spatial low-frequency footstep thumps so it can be heard before it is clearly seen.
+- Base claiming, death return, save/load, weather, combat, heavy-cargo handling and strict Godot 4.6.3 compile plus scene-boot CI are present in prototype form.
