@@ -3,6 +3,7 @@ extends CanvasLayer
 
 var player: RiftPlayer
 var grid: PowerGridSystem
+var base_system: BaseSystem
 var status_label: Label
 var prompt_label: Label
 var crosshair: Label
@@ -21,6 +22,7 @@ func _ready() -> void:
     var runtime_grid := get_parent().get_node_or_null("PowerGrid")
     if runtime_grid is PowerGridSystem:
         grid = runtime_grid as PowerGridSystem
+    base_system = get_parent().get_node_or_null("BaseSystem") as BaseSystem
     _hide_legacy_prototype_ui()
     _build_ui()
 
@@ -117,11 +119,11 @@ func _build_ui() -> void:
     build_panel = PanelContainer.new()
     build_panel.add_theme_stylebox_override("panel", _panel_style(0.70))
     build_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-    build_panel.position = Vector2(-432, 22)
-    build_panel.size = Vector2(410, 238)
+    build_panel.position = Vector2(-452, 22)
+    build_panel.size = Vector2(430, 286)
     root.add_child(build_panel)
     build_label = Label.new()
-    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery   SHIFT+E load priority\n1 platform   2 beam   3 wheel   4 motor wheel   5 anchor\nL magnetic snap   Y weld   I logic piston   X motors\nO save blueprint   P rebuild   U universal winch\n6 button   7 sensor   8 signal lamp   9 alarm   K connect signal\n0 repulsion   N attraction   M luminance   Z gravity field\nHEAVY CARGO: E lift   J drop   H secure at base"
+    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery   SHIFT+E load priority\n1 platform   2 beam   3 wheel   4 motor wheel   5 anchor\nL magnetic snap   Y weld   I logic piston   X motors\nO save blueprint   P rebuild   U universal winch   F6 physical rope\n6 button   7 sensor   8 signal lamp   9 alarm   K connect signal\n0 repulsion   N attraction   M luminance   Z gravity field\nF7 Colossus harpoon anchor\nC claim base   CTRL+C store components   SHIFT+C withdraw\nHEAVY CARGO: E lift   J drop   H secure into base storage"
     build_label.add_theme_font_size_override("font_size", 14)
     build_label.add_theme_color_override("font_color", Color("b9c9d3"))
     build_panel.add_child(build_label)
@@ -129,8 +131,8 @@ func _build_ui() -> void:
     inventory_panel = PanelContainer.new()
     inventory_panel.add_theme_stylebox_override("panel", _panel_style(0.94))
     inventory_panel.set_anchors_preset(Control.PRESET_CENTER)
-    inventory_panel.position = Vector2(-280, -220)
-    inventory_panel.size = Vector2(560, 440)
+    inventory_panel.position = Vector2(-320, -250)
+    inventory_panel.size = Vector2(640, 500)
     inventory_panel.visible = false
     inventory_panel.mouse_filter = Control.MOUSE_FILTER_STOP
     root.add_child(inventory_panel)
@@ -150,7 +152,10 @@ func _build_ui() -> void:
 func _refresh_inventory() -> void:
     if not is_instance_valid(inventory_label):
         return
-    inventory_label.text = "RIFTWORKS // FIELD INVENTORY\n\nSCRAP                         %d\nBATTERY CELLS                 %d\nCABLE COILS                   %d\nCONTROL ELECTRONICS           %d\nINDUSTRIAL MOTORS             %d\nFUEL                          %d\nBREACH CORES                  %d\nCOLOSSUS BIOELECTRIC CORES    %d\nCARAPACE                      %d\n\nHeavy recovered parts must be physically carried to a claimed base\nbefore they are secured into inventory.\n\n[TAB] close" % [
+    var base_text := "NO CLAIMED BASE"
+    if is_instance_valid(base_system) and is_instance_valid(base_system.current_beacon):
+        base_text = base_system.get_storage_summary()
+    inventory_label.text = "RIFTWORKS // FIELD INVENTORY\n\nSCRAP                         %d\nBATTERY CELLS                 %d\nCABLE COILS                   %d\nCONTROL ELECTRONICS           %d\nINDUSTRIAL MOTORS             %d\nFUEL                          %d\nBREACH CORES                  %d\n\n%s\n\nHeavy recovered parts are physical cargo. Secure them at a claimed base.\nCTRL+C near beacon stores field components. SHIFT+C withdraws storage.\n\n[TAB] close" % [
         player.scrap,
         int(player.components.get("battery_cell", 0)),
         int(player.components.get("cable", 0)),
@@ -158,6 +163,5 @@ func _refresh_inventory() -> void:
         int(player.components.get("motor", 0)),
         int(player.components.get("fuel", 0)),
         int(player.components.get("breach_core", 0)),
-        int(player.components.get("bioelectric_core", 0)),
-        int(player.components.get("carapace", 0))
+        base_text
     ]
