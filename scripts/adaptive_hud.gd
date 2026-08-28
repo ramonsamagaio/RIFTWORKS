@@ -117,11 +117,11 @@ func _build_ui() -> void:
     build_panel = PanelContainer.new()
     build_panel.add_theme_stylebox_override("panel", _panel_style(0.70))
     build_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-    build_panel.position = Vector2(-382, 22)
-    build_panel.size = Vector2(360, 200)
+    build_panel.position = Vector2(-432, 22)
+    build_panel.size = Vector2(410, 238)
     root.add_child(build_panel)
     build_label = Label.new()
-    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery\n1 platform   2 beam   3 wheel   4 motor wheel\n5 anchor   X motors   O save blueprint   P rebuild\n6 button   7 sensor   8 signal lamp   9 alarm\nK connect signal   0 repulsion   N attraction   M luminance\nHEAVY CARGO: E lift   J drop   H secure at base"
+    build_label.text = "FIELD ENGINEERING   [Q hide]\nB floodlight   G generator   T battery   SHIFT+E load priority\n1 platform   2 beam   3 wheel   4 motor wheel   5 anchor\nL magnetic snap   Y weld   I logic piston   X motors\nO save blueprint   P rebuild   U universal winch\n6 button   7 sensor   8 signal lamp   9 alarm   K connect signal\n0 repulsion   N attraction   M luminance   Z gravity field\nHEAVY CARGO: E lift   J drop   H secure at base"
     build_label.add_theme_font_size_override("font_size", 14)
     build_label.add_theme_color_override("font_color", Color("b9c9d3"))
     build_panel.add_child(build_label)
