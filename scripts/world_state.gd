@@ -6,6 +6,7 @@ const WORLD_SEED := 731942
 const SAVE_DEBOUNCE := 0.35
 
 var removed_ids: Dictionary = {}
+var claimed_ids: Dictionary = {}
 var dirty := false
 var save_timer := 0.0
 
@@ -23,8 +24,26 @@ func _process(delta: float) -> void:
 func is_removed(persistent_id: String) -> bool:
     return not persistent_id.is_empty() and removed_ids.has(persistent_id)
 
-func mark_removed(persistent_id: String) -> void:
+func is_unavailable(persistent_id: String) -> bool:
+    if persistent_id.is_empty():
+        return false
+    return removed_ids.has(persistent_id) or claimed_ids.has(persistent_id)
+
+func claim_transient(persistent_id: String) -> void:
     if persistent_id.is_empty() or removed_ids.has(persistent_id):
+        return
+    claimed_ids[persistent_id] = true
+
+func release_transient(persistent_id: String) -> void:
+    if persistent_id.is_empty():
+        return
+    claimed_ids.erase(persistent_id)
+
+func mark_removed(persistent_id: String) -> void:
+    if persistent_id.is_empty():
+        return
+    claimed_ids.erase(persistent_id)
+    if removed_ids.has(persistent_id):
         return
     removed_ids[persistent_id] = true
     dirty = true
