@@ -2,11 +2,14 @@ class_name UndergroundDressing
 extends Node3D
 
 var rng := RandomNumberGenerator.new()
+var player: RiftPlayer
+var golems_spawned := 0
 
 func _ready() -> void:
     rng.seed = 443190
     await get_tree().process_frame
     await get_tree().process_frame
+    player = get_tree().get_first_node_in_group("player") as RiftPlayer
     var graph := get_parent().get_node_or_null("UndergroundGraph")
     if not is_instance_valid(graph):
         return
@@ -26,6 +29,8 @@ func _ready() -> void:
             _dress_cave(room)
         else:
             _dress_breach(room)
+            if golems_spawned < 2 and is_instance_valid(player) and rng.randf() < 0.24:
+                _spawn_golem(room)
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.88, emission := Color.BLACK, emission_energy := 0.0) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -110,3 +115,10 @@ func _dress_breach(room: Node3D) -> void:
         glow.omni_range = 8.0
         glow.light_volumetric_fog_energy = 0.85
         room.add_child(glow)
+
+func _spawn_golem(room: Node3D) -> void:
+    var golem := BreachGolem.new()
+    golem.target = player
+    golem.global_position = room.global_position + Vector3(rng.randf_range(-2.2,2.2), 0.1, rng.randf_range(-2.2,2.2))
+    add_child(golem)
+    golems_spawned += 1
