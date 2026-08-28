@@ -46,6 +46,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Salvage")
     void SetCarriedState(bool bCarried);
+
+protected:
+    virtual void BeginPlay() override;
 };
 
 UCLASS(Blueprintable)
@@ -221,6 +224,7 @@ class RIFTWORKSUE_API ARiftAssemblyPart : public AActor, public IRiftInteractabl
 public:
     ARiftAssemblyPart();
     virtual void Tick(float DeltaSeconds) override;
+    virtual void OnConstruction(const FTransform& Transform) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     TObjectPtr<UStaticMeshComponent> PhysicsMesh;
