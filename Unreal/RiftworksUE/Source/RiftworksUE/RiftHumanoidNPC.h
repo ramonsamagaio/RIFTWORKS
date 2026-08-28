@@ -29,7 +29,7 @@ public:
     TObjectPtr<UPointLightComponent> WeaponMuzzleLight;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|AI")
-    float Health = 55.0f;
+    float Health = 50.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|AI")
     float PatrolRadius = 900.0f;
@@ -68,6 +68,9 @@ public:
     TObjectPtr<UAnimSequenceBase> PistolShootAnimation;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
+    TObjectPtr<UAnimSequenceBase> HitAnimation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Animation")
     TObjectPtr<UAnimSequenceBase> DeathAnimation;
 
     UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|AI")
@@ -85,6 +88,9 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnKilled();
 
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnHit(float NewHealth, float DamageAmount);
+
 protected:
     virtual void BeginPlay() override;
 
@@ -98,6 +104,7 @@ protected:
     TObjectPtr<ARiftPlayerCharacter> PlayerTarget;
 
     FVector PatrolOrigin = FVector::ZeroVector;
+    FVector PatrolTarget = FVector::ZeroVector;
     FVector InvestigationLocation = FVector::ZeroVector;
     float FireCooldown = 0.0f;
     float PatrolCooldown = 0.0f;
@@ -110,6 +117,7 @@ protected:
 
     void UpdateBehavior(float DeltaSeconds);
     void UpdateFallbackAnimation();
+    void PlayOneShot(UAnimSequenceBase* Animation, float MinimumLock = 0.15f);
     void PickPatrolPoint();
     void FireAtPlayer();
     void EndAttackAnimation();
