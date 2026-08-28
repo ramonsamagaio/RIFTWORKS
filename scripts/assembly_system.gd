@@ -5,9 +5,9 @@ const BLUEPRINT_PATH := "user://riftworks_last_blueprint.json"
 
 var player: RiftPlayer
 var motors: Array[LogicMotorJoint] = []
-var motor_enabled := true
+var motor_enabled: bool = true
 var ui: Label
-var part_counter := 0
+var part_counter: int = 0
 
 func _ready() -> void:
     await get_tree().process_frame
@@ -15,7 +15,7 @@ func _ready() -> void:
     _make_ui()
 
 func _process(_delta: float) -> void:
-    for child in get_children():
+    for child: Node in get_children():
         if child is RigidBody3D and child.global_position.y < -90.0:
             child.queue_free()
 
@@ -35,7 +35,7 @@ func _unhandled_input(event: InputEvent) -> void:
             _anchor_nearest()
         KEY_X:
             motor_enabled = not motor_enabled
-            for motor in motors:
+            for motor: LogicMotorJoint in motors:
                 if is_instance_valid(motor):
                     motor.set_signal(motor_enabled)
             _message("Assembly motors %s" % ("ON" if motor_enabled else "OFF"))
@@ -62,17 +62,17 @@ func _make_ui() -> void:
     layer.add_child(ui)
 
 func _build_position() -> Vector3:
-    var camera := player.camera
-    var from := camera.global_position
-    var to := from + (-camera.global_basis.z) * 8.0
-    var query := PhysicsRayQueryParameters3D.create(from, to)
+    var camera: Camera3D = player.camera
+    var from: Vector3 = camera.global_position
+    var to: Vector3 = from + (-camera.global_basis.z) * 8.0
+    var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, to)
     query.exclude = [player]
-    var hit := get_world_3d().direct_space_state.intersect_ray(query)
+    var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(query)
     if not hit.is_empty():
-        return hit.position + hit.normal * 0.35
+        return Vector3(hit.position) + Vector3(hit.normal) * 0.35
     return player.global_position + Basis(Vector3.UP, player.yaw) * Vector3(0, 0.7, -3.5)
 
-func _material(color: Color, metallic := 0.55, roughness := 0.58) -> StandardMaterial3D:
+func _material(color: Color, metallic: float = 0.55, roughness: float = 0.58) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
     mat.albedo_color = color
     mat.metallic = metallic
@@ -114,7 +114,7 @@ func _spawn_box_body(label: String, size: Vector3, mass: float, pos: Vector3, ro
     return body
 
 func _place_wheel(powered_motor: bool) -> void:
-    var scrap_cost := 3 if powered_motor else 2
+    var scrap_cost: int = 3 if powered_motor else 2
     if player.scrap < scrap_cost:
         _message("Need %d scrap" % scrap_cost)
         return
@@ -125,14 +125,14 @@ func _place_wheel(powered_motor: bool) -> void:
     if powered_motor:
         player.components["motor"] = int(player.components.get("motor", 0)) - 1
 
-    var pos := _build_position()
-    var parent_body := _nearest_part(pos, 3.6)
+    var pos: Vector3 = _build_position()
+    var parent_body: RigidBody3D = _nearest_part(pos, 3.6)
     _spawn_wheel_body(powered_motor, pos, Vector3.ZERO, parent_body)
 
 func _spawn_wheel_body(powered_motor: bool, pos: Vector3, rotation: Vector3, parent_body: RigidBody3D = null) -> RigidBody3D:
     var wheel := RigidBody3D.new()
     part_counter += 1
-    var type_name := "MotorWheel" if powered_motor else "Wheel"
+    var type_name: String = "MotorWheel" if powered_motor else "Wheel"
     wheel.name = type_name + "_%03d" % part_counter
     wheel.mass = 4.5
     wheel.global_position = pos
@@ -184,8 +184,8 @@ func _spawn_wheel_body(powered_motor: bool, pos: Vector3, rotation: Vector3, par
     return wheel
 
 func _anchor_nearest() -> void:
-    var pos := _build_position()
-    var body := _nearest_part(pos, 4.0)
+    var pos: Vector3 = _build_position()
+    var body: RigidBody3D = _nearest_part(pos, 4.0)
     if not is_instance_valid(body):
         _message("No assembly part close enough to anchor")
         return
@@ -200,13 +200,15 @@ func _anchor_nearest() -> void:
 
 func _nearest_part(pos: Vector3, max_distance: float) -> RigidBody3D:
     var best: RigidBody3D
-    var best_distance := max_distance
-    for node in get_tree().get_nodes_in_group("assembly_parts"):
-        if node is RigidBody3D:
-            var d := node.global_position.distance_to(pos)
-            if d < best_distance:
-                best_distance = d
-                best = node
+    var best_distance: float = max_distance
+    for raw_node: Node in get_tree().get_nodes_in_group("assembly_parts"):
+        var body: RigidBody3D = raw_node as RigidBody3D
+        if not is_instance_valid(body):
+            continue
+        var distance: float = body.global_position.distance_to(pos)
+        if distance < best_distance:
+            best_distance = distance
+            best = body
     return best
 
 func _save_blueprint() -> void:
@@ -216,18 +218,24 @@ func _save_blueprint() -> void:
         return
 
     var origin := Vector3.ZERO
-    for node in parts:
-        if node is RigidBody3D:
-            origin += node.global_position
-    origin /= float(parts.size())
+    var rigid_part_count: int = 0
+    for node: Node in parts:
+        var body: RigidBody3D = node as RigidBody3D
+        if is_instance_valid(body):
+            origin += body.global_position
+            rigid_part_count += 1
+    if rigid_part_count == 0:
+        _message("No valid rigid assembly parts to save")
+        return
+    origin /= float(rigid_part_count)
 
     var records: Array = []
-    for node in parts:
-        if not node is RigidBody3D:
+    for node: Node in parts:
+        var body: RigidBody3D = node as RigidBody3D
+        if not is_instance_valid(body):
             continue
-        var body := node as RigidBody3D
-        var p := body.global_position - origin
-        var r := body.global_rotation
+        var p: Vector3 = body.global_position - origin
+        var r: Vector3 = body.global_rotation
         records.append({
             "name": body.name,
             "type": str(body.get_meta("part_type", "Platform")),
@@ -237,7 +245,7 @@ func _save_blueprint() -> void:
             "anchored": bool(body.get_meta("world_anchored", false))
         })
 
-    var file := FileAccess.open(BLUEPRINT_PATH, FileAccess.WRITE)
+    var file: FileAccess = FileAccess.open(BLUEPRINT_PATH, FileAccess.WRITE)
     if file == null:
         _message("Could not write blueprint file")
         return
@@ -249,20 +257,21 @@ func _deploy_blueprint() -> void:
     if not FileAccess.file_exists(BLUEPRINT_PATH):
         _message("No saved blueprint yet")
         return
-    var file := FileAccess.open(BLUEPRINT_PATH, FileAccess.READ)
+    var file: FileAccess = FileAccess.open(BLUEPRINT_PATH, FileAccess.READ)
     if file == null:
         _message("Could not read blueprint")
         return
-    var parsed = JSON.parse_string(file.get_as_text())
+    var parsed: Variant = JSON.parse_string(file.get_as_text())
     file.close()
     if not parsed is Dictionary or not parsed.has("parts"):
         _message("Blueprint file is invalid")
         return
-    var records: Array = parsed["parts"]
-    var scrap_cost := 0
-    var motor_cost := 0
-    for record in records:
-        var type_name := str(record.get("type", "Platform"))
+    var records: Array = parsed["parts"] as Array
+    var scrap_cost: int = 0
+    var motor_cost: int = 0
+    for record_value: Variant in records:
+        var record: Dictionary = record_value as Dictionary
+        var type_name: String = str(record.get("type", "Platform"))
         match type_name:
             "Platform": scrap_cost += 2
             "Beam": scrap_cost += 1
@@ -276,16 +285,17 @@ func _deploy_blueprint() -> void:
     player.scrap -= scrap_cost
     player.components["motor"] = int(player.components.get("motor",0)) - motor_cost
 
-    var base := _build_position()
-    var created := {}
-    for record in records:
-        var type_name := str(record.get("type", "Platform"))
+    var base: Vector3 = _build_position()
+    var created: Dictionary = {}
+    for record_value: Variant in records:
+        var record: Dictionary = record_value as Dictionary
+        var type_name: String = str(record.get("type", "Platform"))
         if type_name == "Wheel" or type_name == "MotorWheel":
             continue
-        var offset_array: Array = record["offset"]
-        var rot_array: Array = record["rotation"]
-        var pos := base + Vector3(float(offset_array[0]),float(offset_array[1]),float(offset_array[2]))
-        var rot := Vector3(float(rot_array[0]),float(rot_array[1]),float(rot_array[2]))
+        var offset_array: Array = record["offset"] as Array
+        var rot_array: Array = record["rotation"] as Array
+        var pos: Vector3 = base + Vector3(float(offset_array[0]),float(offset_array[1]),float(offset_array[2]))
+        var rot: Vector3 = Vector3(float(rot_array[0]),float(rot_array[1]),float(rot_array[2]))
         var body: RigidBody3D
         if type_name == "Beam":
             body = _spawn_box_body("Beam", Vector3(0.32,0.32,3.0), 5.0, pos, rot)
@@ -293,16 +303,17 @@ func _deploy_blueprint() -> void:
             body = _spawn_box_body("Platform", Vector3(2.6,0.28,2.2), 18.0, pos, rot)
         created[str(record.get("name",""))] = body
 
-    for record in records:
-        var type_name := str(record.get("type", ""))
+    for record_value: Variant in records:
+        var record: Dictionary = record_value as Dictionary
+        var type_name: String = str(record.get("type", ""))
         if type_name != "Wheel" and type_name != "MotorWheel":
             continue
-        var offset_array: Array = record["offset"]
-        var rot_array: Array = record["rotation"]
-        var pos := base + Vector3(float(offset_array[0]),float(offset_array[1]),float(offset_array[2]))
-        var rot := Vector3(float(rot_array[0]),float(rot_array[1]),float(rot_array[2]))
-        var parent_name := str(record.get("parent", ""))
-        var parent_body: RigidBody3D = created.get(parent_name, null)
+        var offset_array: Array = record["offset"] as Array
+        var rot_array: Array = record["rotation"] as Array
+        var pos: Vector3 = base + Vector3(float(offset_array[0]),float(offset_array[1]),float(offset_array[2]))
+        var rot: Vector3 = Vector3(float(rot_array[0]),float(rot_array[1]),float(rot_array[2]))
+        var parent_name: String = str(record.get("parent", ""))
+        var parent_body: RigidBody3D = created.get(parent_name, null) as RigidBody3D
         _spawn_wheel_body(type_name == "MotorWheel", pos, rot, parent_body)
 
     _message("Blueprint reconstructed: %d parts" % records.size())
