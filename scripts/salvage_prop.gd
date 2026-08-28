@@ -19,7 +19,7 @@ func configure(p_item_id: String, p_name: String, p_amount: int, p_mass_class :=
 func _ready() -> void:
     add_to_group("salvage")
     _resolve_automatic_persistent_id()
-    if _was_persistently_removed():
+    if _was_persistently_unavailable():
         queue_free()
         return
     mass = 1.0 if mass_class <= 0 else 28.0
@@ -52,11 +52,32 @@ func _world_state() -> RiftWorldState:
         return null
     return states[0] as RiftWorldState
 
-func _was_persistently_removed() -> bool:
+func _was_persistently_unavailable() -> bool:
     if persistent_id.is_empty():
         return false
     var state := _world_state()
-    return is_instance_valid(state) and state.is_removed(persistent_id)
+    return is_instance_valid(state) and state.is_unavailable(persistent_id)
+
+func claim_persisted_transient() -> void:
+    if persistent_id.is_empty():
+        return
+    var state := _world_state()
+    if is_instance_valid(state):
+        state.claim_transient(persistent_id)
+
+func release_persisted_transient() -> void:
+    if persistent_id.is_empty():
+        return
+    var state := _world_state()
+    if is_instance_valid(state):
+        state.release_transient(persistent_id)
+
+func mark_persisted_removed() -> void:
+    if persistent_id.is_empty():
+        return
+    var state := _world_state()
+    if is_instance_valid(state):
+        state.mark_removed(persistent_id)
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.7) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -153,13 +174,6 @@ func get_prompt_text() -> String:
     if mass_class <= 0:
         return "[E] Take %s  x%d" % [display_name, amount]
     return "[E] Lift %s  x%d  |  %.0f kg cargo" % [display_name, amount, mass]
-
-func mark_persisted_removed() -> void:
-    if persistent_id.is_empty():
-        return
-    var state := _world_state()
-    if is_instance_valid(state):
-        state.mark_removed(persistent_id)
 
 func interact(player: Node) -> void:
     if mass_class > 0:
