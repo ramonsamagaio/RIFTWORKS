@@ -32,6 +32,9 @@ func pickup_heavy(prop: SalvageProp) -> bool:
     if not is_instance_valid(player) or not is_instance_valid(prop) or is_instance_valid(carried):
         return false
     carried = prop
+    carried.claim_persisted_transient()
+    # Detach cargo from a streamed chunk so chunk unloading cannot destroy what is in the player's hands.
+    carried.reparent(self, true)
     carried.freeze = true
     carried.linear_velocity = Vector3.ZERO
     carried.angular_velocity = Vector3.ZERO
@@ -53,18 +56,19 @@ func drop_heavy() -> void:
     carried.linear_velocity = -player.camera.global_basis.z * 0.6
     carried = null
     player.set_meta("carrying_heavy", false)
-    _message("Heavy cargo dropped. Physics transport is live.")
+    _message("Heavy cargo dropped. It remains claimed this session and stays physical.")
 
 func deposit_heavy() -> void:
     if not is_instance_valid(carried) or not _near_safe_base():
         _message("Heavy components can only be secured at your base/shelter")
         return
     player.add_component(carried.item_id, carried.amount)
+    carried.mark_persisted_removed()
     var secured_name := carried.display_name
     carried.queue_free()
     carried = null
     player.set_meta("carrying_heavy", false)
-    _message("%s secured into base inventory" % secured_name)
+    _message("%s secured. Its original world spawn is now permanently consumed." % secured_name)
 
 func _near_safe_base() -> bool:
     if player.global_position.distance_to(Vector3(0,0,38)) <= 13.0:
