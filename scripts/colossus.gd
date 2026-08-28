@@ -15,6 +15,8 @@ var left_arm: Node3D
 var right_arm: Node3D
 var head: Node3D
 var pulse_light: OmniLight3D
+var footstep_player: AudioStreamPlayer3D
+var last_footstep_index := -1
 var weakpoint_hp := {"head":45.0,"torso":60.0,"legs":70.0}
 var destroyed := {"head":false,"torso":false,"legs":false}
 var dead := false
@@ -24,6 +26,7 @@ func _ready() -> void:
     route_center = global_position
     _build_collision()
     _build_body()
+    _build_footstep_audio()
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.75) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -85,6 +88,32 @@ func _build_body() -> void:
     pulse_light.light_volumetric_fog_energy = 2.2
     head.add_child(pulse_light)
 
+func _build_footstep_audio() -> void:
+    var wav := AudioStreamWAV.new()
+    wav.format = AudioStreamWAV.FORMAT_16_BITS
+    wav.mix_rate = 22050
+    wav.stereo = false
+    var duration := 1.15
+    var sample_count := int(float(wav.mix_rate) * duration)
+    var pcm := PackedByteArray()
+    pcm.resize(sample_count * 2)
+    for i in range(sample_count):
+        var t := float(i) / float(wav.mix_rate)
+        var envelope := exp(-t * 5.2)
+        var sub := sin(TAU * 34.0 * t) * 0.72
+        var body := sin(TAU * 58.0 * t) * 0.22
+        var crack := sin(TAU * 113.0 * t) * 0.08 * exp(-t * 14.0)
+        var sample := clampf((sub + body + crack) * envelope, -1.0, 1.0)
+        pcm.encode_s16(i * 2, int(sample * 32767.0))
+    wav.data = pcm
+
+    footstep_player = AudioStreamPlayer3D.new()
+    footstep_player.stream = wav
+    footstep_player.volume_db = 4.5
+    footstep_player.max_distance = 190.0
+    footstep_player.unit_size = 18.0
+    add_child(footstep_player)
+
 func _physics_process(delta: float) -> void:
     if dead:
         return
@@ -111,6 +140,16 @@ func _physics_process(delta: float) -> void:
 
     var footbeat := pow(maxf(0.0, sin(walk_phase * 2.0)), 14.0)
     pulse_light.light_energy = (4.0 if destroyed["head"] else 8.0) + footbeat * (2.0 if destroyed["head"] else 6.0)
+    _update_footsteps()
+
+func _update_footsteps() -> void:
+    var step_index := floori(walk_phase / PI)
+    if step_index == last_footstep_index:
+        return
+    last_footstep_index = step_index
+    if is_instance_valid(footstep_player):
+        footstep_player.pitch_scale = 0.90 + float(step_index % 3) * 0.035
+        footstep_player.play()
 
 func take_hit(amount: float, world_hit_position: Vector3) -> String:
     if dead:
@@ -140,7 +179,6 @@ func take_hit(amount: float, world_hit_position: Vector3) -> String:
     return "%s %.0f" % [weakpoint.to_upper(), maxf(0.0,float(weakpoint_hp[weakpoint]))]
 
 func take_damage(_amount: float) -> void:
-    # Colossi deliberately ignore generic damage. Their vulnerable zones must be targeted.
     pass
 
 func _on_weakpoint_destroyed(kind: String) -> void:
