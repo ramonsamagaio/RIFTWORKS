@@ -6,6 +6,7 @@ try:
     import riftworks_polish
     import riftworks_vertical_slice
     import riftworks_scene_dressing
+    import riftworks_accessibility_pass
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -25,8 +26,9 @@ try:
     riftworks_extras.apply_all()
     riftworks_vertical_slice.apply_all()
     riftworks_scene_dressing.apply_all()
+    riftworks_accessibility_pass.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python/riftworks_setup.py, riftworks_polish.py, riftworks_extras.py, riftworks_vertical_slice.py and riftworks_scene_dressing.py from Tools > Execute Python Script."
+        "After C++ compiles, run the scripts in Content/Python in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility order."
     )
