@@ -7,6 +7,7 @@
 
 class UPhysicsConstraintComponent;
 class UStaticMeshComponent;
+class UPrimitiveComponent;
 
 UENUM(BlueprintType)
 enum class ERiftJointMode : uint8
