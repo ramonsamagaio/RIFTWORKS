@@ -13,6 +13,9 @@ var patrol_origin := Vector3.ZERO
 var patrol_target := Vector3.ZERO
 var patrol_timer := 0.0
 var alerted := false
+var investigating_signature := false
+var investigation_target := Vector3.ZERO
+var signature_scan_timer := 0.0
 var visual_root: Node3D
 var left_leg: Node3D
 var right_leg: Node3D
@@ -26,6 +29,7 @@ func _ready() -> void:
     _build_collision()
     _build_visual()
     _pick_patrol_target()
+    signature_scan_timer = rng.randf_range(0.0,1.2)
 
 func _build_collision() -> void:
     var collision := CollisionShape3D.new()
@@ -71,6 +75,12 @@ func _build_visual() -> void:
 
 func _physics_process(delta: float) -> void:
     attack_cooldown = maxf(0.0, attack_cooldown - delta)
+    signature_scan_timer -= delta
+    if signature_scan_timer <= 0.0:
+        signature_scan_timer = 1.1 + rng.randf_range(0.0,0.5)
+        if not alerted:
+            _scan_power_signatures()
+
     if not is_instance_valid(target):
         _patrol(delta)
         return
@@ -84,11 +94,14 @@ func _physics_process(delta: float) -> void:
 
     if distance <= detect_range and _has_line_of_sight():
         alerted = true
-    elif distance > 52.0:
+        investigating_signature = false
+    elif alerted and distance > 52.0:
         alerted = false
 
     if alerted:
         _chase(delta, distance)
+    elif investigating_signature:
+        _investigate_signature(delta)
     else:
         _patrol(delta)
 
@@ -96,6 +109,28 @@ func _physics_process(delta: float) -> void:
         velocity.y -= 23.0 * delta
     move_and_slide()
     _animate(delta)
+
+func _scan_power_signatures() -> void:
+    var best_score := 0.0
+    var best_position := Vector3.ZERO
+    for node in get_tree().get_nodes_in_group("power_devices"):
+        if not node is PowerDevice:
+            continue
+        var device := node as PowerDevice
+        var strength := device.get_signature_strength()
+        if strength <= 0.0:
+            continue
+        var distance := global_position.distance_to(device.global_position)
+        var detection_radius := 10.0 + strength * 1.6
+        if distance > detection_radius:
+            continue
+        var score := strength / maxf(5.0,distance)
+        if score > best_score:
+            best_score = score
+            best_position = device.global_position
+    if best_score > 0.0:
+        investigating_signature = true
+        investigation_target = best_position
 
 func _has_line_of_sight() -> bool:
     var from := global_position + Vector3(0, 1.45, 0)
@@ -118,6 +153,18 @@ func _chase(_delta: float, distance: float) -> void:
         if attack_cooldown <= 0.0:
             target.apply_damage(attack_damage)
             attack_cooldown = 1.15
+
+func _investigate_signature(_delta: float) -> void:
+    var dir := investigation_target - global_position
+    dir.y = 0.0
+    if dir.length() <= 2.2:
+        investigating_signature = false
+        velocity.x = move_toward(velocity.x,0.0,1.0)
+        velocity.z = move_toward(velocity.z,0.0,1.0)
+        return
+    dir = dir.normalized()
+    velocity.x = dir.x * move_speed * 0.72
+    velocity.z = dir.z * move_speed * 0.72
 
 func _patrol(delta: float) -> void:
     patrol_timer -= delta
@@ -149,6 +196,7 @@ func _animate(delta: float) -> void:
 func take_damage(amount: float) -> void:
     health -= amount
     alerted = true
+    investigating_signature = false
     if health <= 0.0:
         killed.emit(global_position)
         queue_free()
