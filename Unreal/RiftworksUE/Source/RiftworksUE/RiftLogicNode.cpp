@@ -108,11 +108,17 @@ void ARiftLogicNode::SendSignal(AActor* Receiver, bool Value)
     {
         return;
     }
+
     UFunction* Function = Receiver->FindFunction(TEXT("SetSignal"));
+    if (!Function)
+    {
+        Function = Receiver->FindFunction(TEXT("SetDeviceEnabled"));
+    }
     if (!Function)
     {
         return;
     }
+
     struct FSignalParams
     {
         bool bSignalValue;
