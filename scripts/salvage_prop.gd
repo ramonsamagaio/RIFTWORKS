@@ -18,6 +18,10 @@ func configure(p_item_id: String, p_name: String, p_amount: int, p_mass_class :=
 
 func _ready() -> void:
     add_to_group("salvage")
+    _resolve_automatic_persistent_id()
+    if _was_persistently_removed():
+        queue_free()
+        return
     mass = 1.0 if mass_class <= 0 else 28.0
     freeze = mass_class <= 0
     continuous_cd = mass_class > 0
@@ -25,6 +29,34 @@ func _ready() -> void:
     angular_damp = 2.2 if mass_class > 0 else 0.0
     _build_visual()
     _build_collision()
+
+func _resolve_automatic_persistent_id() -> void:
+    if not persistent_id.is_empty() or get_parent() == null:
+        return
+    var parent_name := get_parent().name
+    var persistent_parent := parent_name.begins_with("SurfaceChunk_") or parent_name == "UndergroundGraph" or parent_name == "BreachSystem"
+    if not persistent_parent:
+        return
+    var p := global_position
+    persistent_id = "%s|%s|%d|%d|%d" % [
+        parent_name,
+        item_id,
+        roundi(p.x * 10.0),
+        roundi(p.y * 10.0),
+        roundi(p.z * 10.0)
+    ]
+
+func _world_state() -> RiftWorldState:
+    var states: Array[Node] = get_tree().get_nodes_in_group("world_state")
+    if states.is_empty():
+        return null
+    return states[0] as RiftWorldState
+
+func _was_persistently_removed() -> bool:
+    if persistent_id.is_empty():
+        return false
+    var state := _world_state()
+    return is_instance_valid(state) and state.is_removed(persistent_id)
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.7) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -125,10 +157,7 @@ func get_prompt_text() -> String:
 func mark_persisted_removed() -> void:
     if persistent_id.is_empty():
         return
-    var states: Array[Node] = get_tree().get_nodes_in_group("world_state")
-    if states.is_empty():
-        return
-    var state := states[0] as RiftWorldState
+    var state := _world_state()
     if is_instance_valid(state):
         state.mark_removed(persistent_id)
 
