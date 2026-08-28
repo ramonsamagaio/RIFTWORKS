@@ -10,6 +10,7 @@ try:
     import riftworks_weathering
     import riftworks_landmarks
     import riftworks_encounter_staging
+    import riftworks_instance_polish
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -33,8 +34,9 @@ try:
     riftworks_weathering.apply_all()
     riftworks_landmarks.apply_all()
     riftworks_encounter_staging.apply_all()
+    riftworks_instance_polish.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish order."
     )
