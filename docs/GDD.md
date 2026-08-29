@@ -1455,7 +1455,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [ ] The flashlight alone feels good enough to market in a GIF/video.
 - [x] Generator -> power link -> battery/light works end-to-end.
 - [x] Player scavenges a physical motor from a POI and installs it.
-- [ ] Player builds at least one useful machine from generic components.
+- [x] Player builds at least one useful machine from generic components.
 - [x] Procedural surface -> underground expedition works end-to-end.
 - [x] First humanoid encounter works with reusable rig architecture.
 - [x] First Colossus can be seen, avoided, fought through preparation and harvested.
@@ -1470,17 +1470,20 @@ This checklist is part of the GDD and must be updated as implementation changes.
 
 ## Current implementation snapshot
 
-- First-person perspective and fullscreen presentation are locked project decisions; the active Unreal pawn is now a production-controller subclass with stamina, sprint exhaustion/recovery, smooth crouch camera height, restrained walk/sprint bob and a subtle sprint FOV response.
+- First-person perspective and fullscreen presentation are locked project decisions; the active Unreal pawn is now an engineering-focused production-controller subclass with stamina, sprint exhaustion/recovery, smooth camera motion and Blueprint-configurable mannequin/animation/flashlight defaults.
 - The current Unreal vertical slice prioritizes readable permanent darkness, low volumetric scattering, wet/rough material response, staged low-poly architecture, landmarks and walkable underground spaces rather than grey-box-only presentation.
-- The inventory now has physical mass and volume limits for light salvage; heavy components remain world-space cargo handled by carrying, carts, winches, conveyors and lifts instead of disappearing into an abstract backpack.
+- The inventory has physical mass and volume limits for light salvage; heavy components remain world-space cargo handled by carrying, carts, winches, conveyors and lifts instead of disappearing into an abstract backpack.
 - Salvage progression supports dismantling and Tier 1-4 recovery capability, including tool gates and mechanical recovery requirements for industrial machinery.
+- Build placement now consumes real materials: structural pieces require scrap while wheels and motor wheels additionally consume fabricated fasteners, motors and electronics, tying construction directly into scavenging and fixed fabrication.
+- The player can create generic physical connections during normal gameplay: G selects two FAS parts, T cycles Weld/Hinge/Slider/RopeWinch and X cancels the active selection.
+- Button, Proximity Sensor and Timer logic utilities are player-placeable with material costs; Y links a selected logic source to any compatible motor, joint, power device, Breach field, harpoon or other SetSignal/SetDeviceEnabled receiver.
+- A proving-ground motor cart is staged entirely from the same generic Platform, Wheel, MotorWheel, Hinge and Button components available to the player, with loose parts nearby for in-game joint experiments rather than a bespoke vehicle script.
 - The logistics chain includes pushable physics carts, powered conveyors, recovery winches and a grid-powered freight lift, all operating on the same physical cargo model.
 - The power grid supports generation, consumption, storage, charge/discharge, priorities, powered feedback, detectable signatures and logic-driven blackout behavior.
-- The FAS exposes grid-snapped placement plus Weld, Hinge, Slider/Piston and Rope/Winch constraints as generic reusable behaviors alongside platforms, beams, wheels and motors.
 - Two functional outposts are staged as smaller respawn/storage infrastructure nodes, beginning the transition from one base to a player-built network across surface and underground regions.
-- Breach engineering now includes Repulsion, Attraction, Luminance, Gravity, Thermal, Cryo and Phase fields; Phase temporarily removes solidity/gravity from physical cargo and restores original collision state on exit.
+- Breach engineering includes Repulsion, Attraction, Luminance, Gravity, Thermal, Cryo and Phase fields; Phase temporarily removes solidity/gravity from physical cargo and restores its original collision state on exit.
 - Humanoid enemies use the shared mannequin animation family with sight/hearing/flashlight awareness, while a rigid-part procedural crawler provides a production-efficient non-humanoid threat.
 - The mannequin Colossus roams with segmented weakpoint collisions, engineered harpoon support and environmental trampling that can knock physical construction loose, break nearby joints, disable power devices and remove fragile tagged props.
 - Unreal world streaming is deterministic and budgeted, sorting pending chunks by player distance and materializing only a configurable number per refresh; the save system persists and restores the procedural WorldSeed before regenerating visible chunks.
-- A deterministic Blueprintable road-graph actor now generates guaranteed connected arterial spines, secondary branches, cross streets and ring-road fragments with instanced asphalt/curb geometry for later procedural district integration.
-- The native fallback HUD now reports stamina, backpack kg/L usage, global generation/load/storage/signature and online outpost/storage totals in addition to health, flashlight and interaction state.
+- A deterministic Blueprintable road-graph actor generates guaranteed connected arterial spines, secondary branches, cross streets and ring-road fragments with instanced asphalt/curb geometry for later procedural district integration.
+- The native fallback HUD reports stamina, backpack kg/L usage, global generation/load/storage/signature, outposts, build costs and current engineering/logic controls in addition to health, flashlight and interaction state.
