@@ -1322,7 +1322,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [ ] Production character controller.
 - [ ] Input rebinding/settings UI.
 - [x] Save/load architecture.
-- [ ] Seeded world persistence architecture.
+- [x] Seeded world persistence architecture.
 
 ## Visual / darkness
 - [x] Permanent-night prototype environment.
@@ -1352,14 +1352,14 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Mine modules.
 - [x] Cave modules.
 - [x] Breach modules.
-- [ ] Streaming/chunk budgets.
+- [x] Streaming/chunk budgets.
 
 ## Scavenging / inventory
 - [x] Temporary abstract scavenge interaction.
 - [x] Basic scrap resource.
 - [x] Physical salvage props.
 - [x] Interaction raycast/highlight.
-- [ ] Inventory with weight/volume rules.
+- [x] Inventory with weight/volume rules.
 - [x] Carry heavy component interaction.
 - [x] Dismantling.
 - [x] Salvage tiers/tools.
@@ -1396,7 +1396,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 ## Bases / logistics
 - [x] Claim existing structure as base.
 - [x] Base inventory.
-- [ ] Outposts.
+- [x] Outposts.
 - [x] Heavy salvage logistics.
 - [x] Winch.
 - [x] Lift/elevator.
@@ -1417,7 +1417,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Functional roaming Colossus AI.
 - [x] Distant audio/footstep presence.
 - [x] Vulnerable zones.
-- [ ] Environmental interaction.
+- [x] Environmental interaction.
 - [x] Engineered hunting support.
 - [x] Harvestable Colossus component.
 - [x] First component unlocks a new engineering property.
@@ -1427,7 +1427,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Repulsion component.
 - [x] Attraction component.
 - [x] Luminance component.
-- [ ] Thermal/Cryo component.
+- [x] Thermal/Cryo component.
 - [x] Gravity component.
 - [ ] High-end Phase concept.
 
@@ -1441,7 +1441,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Inventory UI.
 - [x] Build mode UI.
 - [ ] Blueprint UI.
-- [ ] Base/grid overview.
+- [x] Base/grid overview.
 
 ## Audio
 - [ ] Footsteps by surface.
@@ -1470,22 +1470,16 @@ This checklist is part of the GDD and must be updated as implementation changes.
 
 ## Current implementation snapshot
 
-- First-person perspective and fullscreen presentation are locked project decisions; the player uses an eye-height FPS camera, restrained head movement and a shadow-only body.
-- The darkness stack uses Forward+, dynamic soft flashlight shadows, projector cookie, volumetric fog, AgX tonemapping, SSAO, SSIL and SDFGI; weather and multiple functional light types now participate in the same visual language.
-- The fullscreen HUD is resolution-adaptive, replaces the old fixed 1280x720 debug panels, and includes an inventory overlay, engineering reference panel, centered interaction prompt and runtime grid status.
-- Surface streaming is deterministic and blends urban, industrial and woodland regions through continuous noise rather than abrupt chunk biome cuts.
-- The procedural underground graph is now dressed by depth family: metro infrastructure, mine supports, cave formations and Breach architecture/crystals, with drones and low-cost procedural Breach golems in deeper rooms.
-- Physical salvage is interactive and highlighted; heavy motors and Colossus parts are true RigidBody cargo that can fall, ride on player-built physics constructions, react to Breach forces, be carried manually or be pulled by a universal winch.
-- The power grid supports generation, consumption, storage, charge/discharge, player-controlled load priority, device feedback, detectable power signatures and logic-driven blackout behavior.
-- The FAS prototype provides platforms, beams, wheels, logic motor wheels, hinges, anchoring, sensors/buttons, signal links and blueprint save/rebuild; a universal winch extends the same sandbox into logistics rather than hardcoding one elevator recipe.
-- Breach engineering now includes repulsion, attraction and high-output luminance devices; all three can participate in player-built logic systems.
-- Humanoid enemies reuse one low-poly architecture and now include melee/ranged behavior, flashlight visibility response, power-signature investigation and muzzle flashes that reveal combatants in darkness.
-- The Walker Colossus roams, has targeted weak zones, drops physical harvest, and now produces synthesized spatial low-frequency footstep thumps so it can be heard before it is clearly seen.
-- Base claiming, death return, save/load, weather, combat, heavy-cargo handling and strict Godot 4.6.3 compile plus scene-boot CI are present in prototype form.
-- The Unreal vertical slice now implements Tier 1–4 salvage progression with explicit recovery-tool gates, dismantling into generic/component materials, physically recoverable Tier 3/4 machinery and staged recovery equipment at increasing depths.
-- Fixed fabrication is now represented by a reusable fabricator for ammunition, cable, fasteners, structural pieces, medical kits and replacement parts instead of turning machine construction into recipe crafting.
-- Logistics now shares the same physical cargo model across pushable carts, powered conveyors, recovery winches and a grid-powered freight lift, allowing heavy salvage to move through an actual recovery chain.
-- The Unreal FAS already exposes grid-snapped placement plus Weld, Hinge, Slider and Rope/Winch constraints as reusable generic joint behaviors rather than machine-specific scripts.
-- A rigid-part procedural crawler now provides a first production-efficient non-humanoid creature family with procedural gait, melee behavior and physical harvest drops.
-- Humanoid Unreal AI uses sight and hearing perception plus explicit flashlight visibility response, keeping darkness connected to enemy awareness.
-- A functional Gravity Breach emitter is staged in the deep chamber alongside the existing repulsion, attraction and luminance components, allowing physics cargo to experience altered effective gravity.
+- First-person perspective and fullscreen presentation are locked project decisions; the Unreal player uses an eye-height FPS camera, animated shadow body, crouch, sprint, combat and a restrained premium flashlight.
+- The current Unreal vertical slice prioritizes readable permanent darkness, low volumetric scattering, wet/rough material response, staged low-poly architecture, landmarks and walkable underground spaces rather than grey-box-only presentation.
+- The inventory now has physical mass and volume limits for light salvage; heavy components remain world-space cargo handled by carrying, carts, winches, conveyors and lifts instead of disappearing into an abstract backpack.
+- Salvage progression supports dismantling and Tier 1-4 recovery capability, including tool gates and mechanical recovery requirements for industrial machinery.
+- The logistics chain includes pushable physics carts, powered conveyors, recovery winches and a grid-powered freight lift, all operating on the same physical cargo model.
+- The power grid supports generation, consumption, storage, charge/discharge, priorities, powered feedback, detectable signatures and logic-driven blackout behavior.
+- The FAS exposes grid-snapped placement plus Weld, Hinge, Slider/Piston and Rope/Winch constraints as generic reusable behaviors alongside platforms, beams, wheels and motors.
+- Two functional outposts are staged as smaller respawn/storage infrastructure nodes, beginning the transition from one base to a player-built network across surface and underground regions.
+- Breach engineering now includes Repulsion, Attraction, Luminance, Gravity, Thermal and Cryo fields; Thermal affects organisms and lifts physics cargo while Cryo slows characters and damps moving rigid bodies, and both accept logic signals.
+- Humanoid enemies use the shared mannequin animation family with sight/hearing/flashlight awareness, while a rigid-part procedural crawler provides a production-efficient non-humanoid threat.
+- The mannequin Colossus roams with segmented weakpoint collisions, engineered harpoon support and environmental trampling that can knock physical construction loose, break nearby joints, disable power devices and remove fragile tagged props.
+- Unreal world streaming is deterministic and budgeted, sorting pending chunks by player distance and materializing only a configurable number per refresh; the save system now persists and restores the procedural WorldSeed before regenerating visible chunks.
+- The native fallback HUD now reports backpack kg/L usage, global generation/load/storage/signature and online outpost/storage totals in addition to health, flashlight and interaction state.
