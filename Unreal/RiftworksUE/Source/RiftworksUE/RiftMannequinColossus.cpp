@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 
 ARiftMannequinColossus::ARiftMannequinColossus()
 {
@@ -120,6 +121,7 @@ void ARiftMannequinColossus::PulseEnvironment()
     FCollisionObjectQueryParams ObjectQuery;
     ObjectQuery.AddObjectTypesToQuery(ECC_PhysicsBody);
     ObjectQuery.AddObjectTypesToQuery(ECC_WorldDynamic);
+    ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RiftColossusEnvironment), false, this);
     TArray<FOverlapResult> Results;
