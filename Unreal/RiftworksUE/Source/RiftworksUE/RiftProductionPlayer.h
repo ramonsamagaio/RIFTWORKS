@@ -66,6 +66,12 @@ public:
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Engineering")
     void CancelEngineeringSelection();
 
+    UFUNCTION(BlueprintPure, Category="RIFTWORKS|Build")
+    FString GetSelectedBuildCostText() const;
+
+    UFUNCTION(BlueprintPure, Category="RIFTWORKS|Build")
+    bool CanAffordSelectedBuildPiece() const;
+
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnStaminaChanged(float NewStamina, float MaximumStamina, bool bExhausted);
 
@@ -90,4 +96,7 @@ protected:
     ARiftAssemblyPart* TraceEngineeringPart(FHitResult* OutHit = nullptr) const;
     FString EngineeringModeName() const;
     void UpdateEngineeringPrompt();
+    void ProductionBuildPlacePressed();
+    bool ConsumeSelectedBuildCost();
+    void UpdateBuildCostPrompt();
 };
