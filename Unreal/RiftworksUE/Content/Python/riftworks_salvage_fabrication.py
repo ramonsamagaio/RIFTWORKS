@@ -16,13 +16,21 @@ def _set_material(component, material):
 
 
 def _ensure_blueprints(materials):
-    tiered_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftTieredSalvage"
+    tiered_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftCapacitySalvage"
     winch_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftRecoveryWinch"
     fabricator_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftFabricator"
 
-    rw.create_blueprint("BP_RiftTieredSalvage", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftCapacitySalvageActor")
+    rw.create_blueprint("BP_RiftCapacitySalvage", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftCapacitySalvageActor")
     rw.create_blueprint("BP_RiftRecoveryWinch", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftRecoveryWinch")
     rw.create_blueprint("BP_RiftFabricator", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftFabricator")
+
+    capacity_salvage = rw.blueprint_cdo(tiered_path)
+    if capacity_salvage:
+        try:
+            _set_material(capacity_salvage.get_editor_property("mesh"), materials.get("salvage"))
+        except Exception:
+            pass
+        rw.asset_library.save_asset(tiered_path, only_if_is_dirty=False)
 
     winch = rw.blueprint_cdo(winch_path)
     if winch:
@@ -174,7 +182,6 @@ def _stage_salvage_progression(actors, tiered_cls):
         dismantleable=False,
     )
 
-    # Extra loose loot intentionally tests the backpack limits instead of allowing infinite abstract hoarding.
     for index, x in enumerate((-1140, -1010, -880, -750, -620)):
         _spawn_tiered(
             actors, tiered_cls, f"CableBundle{index:02d}", (x, 1660, 108),
