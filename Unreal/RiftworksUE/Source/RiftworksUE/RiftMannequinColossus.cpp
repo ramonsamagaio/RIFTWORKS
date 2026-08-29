@@ -1,11 +1,14 @@
 #include "RiftMannequinColossus.h"
 
+#include "RiftEngineeringJoint.h"
 #include "AIController.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ARiftMannequinColossus::ARiftMannequinColossus()
@@ -73,12 +76,12 @@ void ARiftMannequinColossus::BeginPlay()
     PrototypeRouteCenter = GetActorLocation();
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
     GetCharacterMovement()->bRunPhysicsWithNoController = true;
+    EnvironmentPulseTimer = FMath::FRandRange(0.0f, EnvironmentPulseInterval);
     UpdatePrototypeAnimation();
 }
 
 void ARiftMannequinColossus::Tick(float DeltaSeconds)
 {
-    // Deliberately bypass ARiftColossus::Tick: this prototype owns a simpler guaranteed roaming path.
     ACharacter::Tick(DeltaSeconds);
 
     UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -93,11 +96,109 @@ void ARiftMannequinColossus::Tick(float DeltaSeconds)
 
     if (!Direction.IsNearlyZero())
     {
-        // Direct CharacterMovement velocity makes this visual prototype independent from NavMesh/input state.
         Movement->Velocity = FVector(Direction.X * MoveSpeed, Direction.Y * MoveSpeed, Movement->Velocity.Z);
         SetActorRotation(FMath::RInterpTo(GetActorRotation(), Direction.Rotation(), DeltaSeconds, 1.4f));
     }
+
+    EnvironmentPulseTimer -= DeltaSeconds;
+    if (EnvironmentPulseTimer <= 0.0f)
+    {
+        EnvironmentPulseTimer = FMath::Max(0.05f, EnvironmentPulseInterval);
+        PulseEnvironment();
+    }
+
     UpdatePrototypeAnimation();
+}
+
+void ARiftMannequinColossus::PulseEnvironment()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    FCollisionObjectQueryParams ObjectQuery;
+    ObjectQuery.AddObjectTypesToQuery(ECC_PhysicsBody);
+    ObjectQuery.AddObjectTypesToQuery(ECC_WorldDynamic);
+
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RiftColossusEnvironment), false, this);
+    TArray<FOverlapResult> Results;
+    const FVector Origin = GetActorLocation() + GetActorForwardVector() * 250.0f + FVector(0.0f, 0.0f, 120.0f);
+
+    if (!GetWorld()->OverlapMultiByObjectType(
+        Results,
+        Origin,
+        FQuat::Identity,
+        ObjectQuery,
+        FCollisionShape::MakeSphere(EnvironmentInteractionRadius),
+        QueryParams))
+    {
+        return;
+    }
+
+    TSet<AActor*> ProcessedActors;
+    for (const FOverlapResult& Result : Results)
+    {
+        UPrimitiveComponent* Primitive = Result.GetComponent();
+        AActor* Actor = Result.GetActor();
+        if (!Actor || Actor == this || Actor->IsA<APawn>())
+        {
+            continue;
+        }
+
+        const float Distance = FVector::Dist2D(Actor->GetActorLocation(), Origin);
+
+        if (Primitive && Primitive->IsSimulatingPhysics())
+        {
+            Primitive->AddRadialImpulse(
+                Origin,
+                EnvironmentInteractionRadius,
+                EnvironmentImpulse,
+                ERadialImpulseFalloff::RIF_Linear,
+                true);
+        }
+
+        if (ARiftAssemblyPart* Part = Cast<ARiftAssemblyPart>(Actor))
+        {
+            if (Part->PhysicsMesh && Distance <= EnvironmentBreakRadius)
+            {
+                if (!Part->PhysicsMesh->IsSimulatingPhysics())
+                {
+                    Part->PhysicsMesh->SetSimulatePhysics(true);
+                }
+                Part->PhysicsMesh->AddRadialImpulse(
+                    Origin,
+                    EnvironmentInteractionRadius,
+                    EnvironmentImpulse * 1.25f,
+                    ERadialImpulseFalloff::RIF_Linear,
+                    true);
+            }
+        }
+        else if (ARiftEngineeringJoint* Joint = Cast<ARiftEngineeringJoint>(Actor))
+        {
+            if (Distance <= EnvironmentBreakRadius)
+            {
+                Joint->Destroy();
+            }
+        }
+        else if (ARiftPowerDevice* Device = Cast<ARiftPowerDevice>(Actor))
+        {
+            if (Distance <= EnvironmentBreakRadius)
+            {
+                Device->SetDeviceEnabled(false);
+            }
+        }
+        else if (Distance <= EnvironmentBreakRadius && Actor->ActorHasTag(TEXT("RiftFragile")))
+        {
+            Actor->Destroy();
+        }
+
+        if (!ProcessedActors.Contains(Actor))
+        {
+            ProcessedActors.Add(Actor);
+            BP_OnEnvironmentImpact(Actor);
+        }
+    }
 }
 
 void ARiftMannequinColossus::UpdatePrototypeAnimation()
