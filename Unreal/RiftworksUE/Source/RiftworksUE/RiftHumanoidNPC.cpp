@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/PathFollowingComponent.h"
@@ -20,6 +21,11 @@ ARiftHumanoidNPC::ARiftHumanoidNPC()
     PrimaryActorTick.bCanEverTick = true;
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     AIControllerClass = AAIController::StaticClass();
+
+    // Keep visual scale, collision and nav agent in agreement. Older Blueprints
+    // inherited the generic Character capsule and made imported mannequins look
+    // suspended even when the Actor itself was on the floor.
+    GetCapsuleComponent()->InitCapsuleSize(42.0f, 92.0f);
 
     Perception = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("Perception"));
     SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
@@ -50,7 +56,7 @@ ARiftHumanoidNPC::ARiftHumanoidNPC()
     WeaponMuzzleLight->SetAttenuationRadius(600.0f);
     WeaponMuzzleLight->SetLightColor(FColor(255, 164, 77));
     WeaponMuzzleLight->SetSourceRadius(4.0f);
-    WeaponMuzzleLight->SetVolumetricScatteringIntensity(0.10f);
+    WeaponMuzzleLight->SetVolumetricScatteringIntensity(0.03f);
     WeaponMuzzleLight->CastShadows = true;
 
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
@@ -63,15 +69,19 @@ ARiftHumanoidNPC::ARiftHumanoidNPC()
 void ARiftHumanoidNPC::BeginPlay()
 {
     Super::BeginPlay();
-    PatrolOrigin = GetActorLocation();
     PlayerTarget = Cast<ARiftPlayerCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
     Perception->OnTargetPerceptionUpdated.AddDynamic(this, &ARiftHumanoidNPC::OnTargetPerceptionUpdated);
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
     GetCharacterMovement()->bRunPhysicsWithNoController = true;
     if (GetMesh())
     {
+        // Import conversion already establishes the mesh forward axis. Applying
+        // the old hard-coded -90 yaw on top of it was rotating some characters
+        // sideways. The editor audit computes Z from real mesh bounds.
+        GetMesh()->SetRelativeRotation(FRotator::ZeroRotator);
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
     }
+    PatrolOrigin = GetActorLocation();
     PickPatrolPoint();
 }
 
@@ -160,7 +170,6 @@ void ARiftHumanoidNPC::UpdateBehavior(float DeltaSeconds)
                     const EPathFollowingRequestResult::Type Result = AI->MoveToActor(PlayerTarget, 850.0f, true, true, true, nullptr, true);
                     bPathing = Result != EPathFollowingRequestResult::Failed;
                 }
-                // Runtime-generated buildings/NavMesh can take a moment to catch up. Never let the NPC freeze.
                 if (!bPathing || GetVelocity().Size2D() < 8.0f)
                 {
                     AddMovementInput(ToPlayer, 1.0f);
@@ -272,9 +281,19 @@ void ARiftHumanoidNPC::FireAtPlayer()
     BP_OnRangedAttack(PlayerTarget);
 }
 
+bool ARiftHumanoidNPC::IsAnimationCompatible(const UAnimSequenceBase* Animation) const
+{
+    if (!Animation || !GetMesh())
+    {
+        return false;
+    }
+    const USkeletalMesh* MeshAsset = GetMesh()->GetSkeletalMeshAsset();
+    return MeshAsset && MeshAsset->GetSkeleton() && Animation->GetSkeleton() == MeshAsset->GetSkeleton();
+}
+
 void ARiftHumanoidNPC::PlayOneShot(UAnimSequenceBase* Animation, float MinimumLock)
 {
-    if (!bUseSingleNodeAnimationFallback || !Animation || !GetMesh())
+    if (!bUseSingleNodeAnimationFallback || !IsAnimationCompatible(Animation))
     {
         return;
     }
@@ -320,6 +339,22 @@ void ARiftHumanoidNPC::UpdateFallbackAnimation()
     else
     {
         Desired = RunAnimation ? RunAnimation.Get() : WalkAnimation.Get();
+    }
+
+    if (!IsAnimationCompatible(Desired))
+    {
+        UAnimSequenceBase* Candidates[] = {
+            IdleAnimation.Get(), WalkAnimation.Get(), RunAnimation.Get(), PistolIdleAnimation.Get()
+        };
+        Desired = nullptr;
+        for (UAnimSequenceBase* Candidate : Candidates)
+        {
+            if (IsAnimationCompatible(Candidate))
+            {
+                Desired = Candidate;
+                break;
+            }
+        }
     }
 
     if (Desired && Desired != CurrentFallbackAnimation)
@@ -371,7 +406,7 @@ void ARiftHumanoidNPC::Die()
     GetCharacterMovement()->DisableMovement();
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    if (DeathAnimation && GetMesh())
+    if (IsAnimationCompatible(DeathAnimation))
     {
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->PlayAnimation(DeathAnimation, false);
