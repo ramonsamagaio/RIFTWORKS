@@ -49,11 +49,19 @@ def _point(actors, name, loc, color, intensity, radius, shadows=False):
 
 def _spawn_dumpster(actors, name, loc, yaw, mats):
     x, y, z = loc
-    rot = unreal.Rotator(0, yaw, 0)
+    rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(yaw))
     _cube(actors, name + "_Bin", (x, y, z + 65), (260, 150, 130), mats["metal"], rot)
     _cube(actors, name + "_Lid", (x, y, z + 137), (270, 160, 12), mats["rust"], rot)
     for sx in (-1, 1):
-        _cylinder(actors, f"{name}_Wheel_{sx}", (x + sx * 82, y, z + 15), 34, 24, mats["rubber"], unreal.Rotator(90, yaw, 0))
+        _cylinder(
+            actors,
+            f"{name}_Wheel_{sx}",
+            (x + sx * 82, y, z + 15),
+            34,
+            24,
+            mats["rubber"],
+            unreal.Rotator(roll=90.0, pitch=0.0, yaw=float(yaw)),
+        )
 
 
 def _spawn_pallet_stack(actors, name, loc, mats, levels=3):
@@ -78,7 +86,7 @@ def _spawn_barrels(actors, base_name, loc, mats, count=4):
 def _spawn_utility_pole(actors, name, loc, mats, damaged=False):
     x, y, z = loc
     yaw = 7 if damaged else 0
-    rot = unreal.Rotator(0, yaw, 0)
+    rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(yaw))
     _cylinder(actors, name + "_Pole", (x, y, z + 310), 38, 620, mats["trunk"], rot)
     _cube(actors, name + "_Cross", (x, y, z + 570), (310, 32, 30), mats["trunk"], rot)
     for offset in (-105, 0, 105):
@@ -95,7 +103,14 @@ def _spawn_powerline_segment(actors, name, a, b, mats):
     midpoint = ((ax + bx) * 0.5, (ay + by) * 0.5, (az + bz) * 0.5 - 18)
     yaw = unreal.MathLibrary.atan2(dy, dx) * 57.2957795
     pitch = -unreal.MathLibrary.atan2(dz, max(1.0, (dx * dx + dy * dy) ** 0.5)) * 57.2957795
-    _cube(actors, name, midpoint, (length, 7, 7), mats["rubber"], unreal.Rotator(pitch, yaw, 0))
+    _cube(
+        actors,
+        name,
+        midpoint,
+        (length, 7, 7),
+        mats["rubber"],
+        unreal.Rotator(roll=0.0, pitch=float(pitch), yaw=float(yaw)),
+    )
 
 
 def _spawn_rooftop_hvac(actors, name, loc, mats):
@@ -107,10 +122,16 @@ def _spawn_rooftop_hvac(actors, name, loc, mats):
 
 
 def _spawn_abandoned_checkpoint(actors, mats):
-    # A small human story beat: road was once controlled and abandoned in a hurry.
     y = -2300
     for side in (-1, 1):
-        _cube(actors, f"CheckpointBarrier_{side}", (side * 250, y, 58), (330, 54, 70), mats["hazard"], unreal.Rotator(0, side * 8, 0))
+        _cube(
+            actors,
+            f"CheckpointBarrier_{side}",
+            (side * 250, y, 58),
+            (330, 54, 70),
+            mats["hazard"],
+            unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(side * 8)),
+        )
         _cube(actors, f"CheckpointFoot_{side}", (side * 250, y, 18), (80, 160, 36), mats["concrete"])
     _cube(actors, "CheckpointBoothFloor", (-620, y + 110, 10), (430, 390, 20), mats["concrete"])
     _cube(actors, "CheckpointBoothRear", (-620, y + 285, 145), (430, 28, 290), mats["metal"])
@@ -123,7 +144,6 @@ def _spawn_abandoned_checkpoint(actors, mats):
 
 
 def _spawn_workshop_detail(actors, mats):
-    # Exterior equipment gives the workshop a readable scavenging identity.
     _spawn_dumpster(actors, "WorkshopDumpster", (2380, 1180, 0), -8, mats)
     _spawn_pallet_stack(actors, "WorkshopPallets", (2240, 520, 0), mats, 4)
     _spawn_barrels(actors, "WorkshopBarrels", (980, 1640, 0), mats, 5)
@@ -132,7 +152,6 @@ def _spawn_workshop_detail(actors, mats):
     _cube(actors, "WorkshopSignGlow", (1550, 107, 515), (440, 10, 60), mats["lamp"])
     _point(actors, "WorkshopInteriorWarm", (1550, 900, 300), (255, 174, 92), 560, 900, True)
 
-    # Simple lift frame, a visual tease for future mechanical construction.
     for side in (-1, 1):
         _cube(actors, f"WorkshopLiftPost_{side}", (1550 + side * 270, 1150, 170), (45, 45, 340), mats["assembly"])
         _cube(actors, f"WorkshopLiftArm_{side}", (1550 + side * 150, 1150, 110), (260, 32, 30), mats["assembly_motor"])
@@ -165,7 +184,6 @@ def _spawn_substation_detail(actors, mats):
             x = sx - 520 + col * 520
             y = sy - 320 + row * 620
             _cylinder(actors, f"SubInsulator_{row}_{col}", (x, y, 275), 42, 260, mats["glass"])
-    # Control shack with little status lights.
     _cube(actors, "SubControlFloor", (2500, -1750, 12), (440, 520, 24), mats["concrete"])
     _cube(actors, "SubControlBody", (2500, -1750, 155), (430, 510, 285), mats["metal"])
     _cube(actors, "SubControlDoor", (2279, -1750, 130), (12, 150, 245), mats["rust"])
@@ -174,12 +192,18 @@ def _spawn_substation_detail(actors, mats):
 
 
 def _spawn_underground_detail(actors, mats):
-    # Cable trays and pipes frame the path through the station.
     for i in range(6):
         y = -6100 - i * 360
         _cube(actors, f"UG_CableTray_{i}", (-760, y, -390), (30, 330, 24), mats["metal"])
-        _cylinder(actors, f"UG_PipeRed_{i}", (745, y, -380), 36, 340, mats["rust"], unreal.Rotator(90, 0, 0))
-    # Benches and debris in the station hall.
+        _cylinder(
+            actors,
+            f"UG_PipeRed_{i}",
+            (745, y, -380),
+            36,
+            340,
+            mats["rust"],
+            unreal.Rotator(roll=90.0, pitch=0.0, yaw=0.0),
+        )
     for i, x in enumerate((-520, 0, 520)):
         _cube(actors, f"UG_BenchSeat_{i}", (x, -7050, -845), (280, 70, 24), mats["trunk"])
         _cube(actors, f"UG_BenchLegA_{i}", (x - 90, -7050, -885), (24, 54, 80), mats["metal"])
@@ -187,11 +211,17 @@ def _spawn_underground_detail(actors, mats):
     _spawn_barrels(actors, "UG_Barrels", (510, -7800, -925), mats, 4)
     _spawn_pallet_stack(actors, "UG_Pallets", (-590, -7800, -925), mats, 3)
 
-    # Breach chamber's human investigation station, implying someone got here first.
     _cube(actors, "BreachResearchTable", (-720, -9700, -1265), (420, 120, 105), mats["metal"])
     _cube(actors, "BreachResearchMonitor", (-720, -9680, -1160), (120, 30, 90), mats["breach"])
     _cube(actors, "BreachGenerator", (780, -9720, -1240), (240, 180, 180), mats["rust"])
-    _cube(actors, "BreachCableA", (380, -9810, -1320), (620, 18, 18), mats["rubber"], unreal.Rotator(0, -12, 0))
+    _cube(
+        actors,
+        "BreachCableA",
+        (380, -9810, -1320),
+        (620, 18, 18),
+        mats["rubber"],
+        unreal.Rotator(roll=0.0, pitch=0.0, yaw=-12.0),
+    )
     _point(actors, "BreachResearchGlow", (-700, -9700, -1110), (91, 72, 255), 330, 520, False)
 
 
