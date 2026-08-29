@@ -36,20 +36,15 @@ def _light(actors, name, loc, color, intensity, radius):
 def _radio_tower(actors, mats):
     x, y, z = 3300, 3100, 0
     height = 2400
-    # Tapered open lattice tower: no giant solid cuboid silhouette.
     levels = 9
     for level in range(levels):
         t = level / float(levels - 1)
         zz = z + 100 + t * height
         half = 260 * (1.0 - 0.62 * t)
-        next_t = min(1.0, (level + 1) / float(levels - 1))
-        next_half = 260 * (1.0 - 0.62 * next_t)
         for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
             _cube(actors, f"RadioLeg_{level}_{sx}_{sy}", (x + sx * half, y + sy * half, zz), (28, 28, 330), mats["metal"])
         if level < levels - 1:
             for side in range(4):
-                angle = side * 90
-                # Horizontal braces make the silhouette readable without expensive mesh assets.
                 if side % 2 == 0:
                     _cube(actors, f"RadioBraceX_{level}_{side}", (x, y + (-half if side == 0 else half), zz + 135), (half * 2, 22, 22), mats["rust"])
                 else:
@@ -88,21 +83,33 @@ def _industrial_stack(actors, mats):
 
 
 def _breach_spire(actors, mats):
-    # Seen from the city, but far enough that it reads as a question rather than immediate objective.
     x, y, z = -4300, -4700, 0
-    _cube(actors, "SpirePlinth", (x, y, z + 55), (850, 850, 110), mats["breach_dark"], unreal.Rotator(0, 17, 0))
+    _cube(
+        actors,
+        "SpirePlinth",
+        (x, y, z + 55),
+        (850, 850, 110),
+        mats["breach_dark"],
+        unreal.Rotator(roll=0.0, pitch=0.0, yaw=17.0),
+    )
     for i, (offset, height, width, pitch) in enumerate((
         ((0, 0), 1700, 290, -5), ((240, 80), 1050, 190, 11), ((-250, 130), 920, 165, -14),
         ((90, -260), 680, 135, 8),
     )):
         ox, oy = offset
-        _cone(actors, f"SpireShard_{i}", (x + ox, y + oy, z + height * 0.5), width, height,
-              mats["breach"] if i == 0 else mats["breach_dark"], unreal.Rotator(pitch, i * 37, 0))
+        _cone(
+            actors,
+            f"SpireShard_{i}",
+            (x + ox, y + oy, z + height * 0.5),
+            width,
+            height,
+            mats["breach"] if i == 0 else mats["breach_dark"],
+            unreal.Rotator(roll=0.0, pitch=float(pitch), yaw=float(i * 37)),
+        )
     _light(actors, "SpireGlow", (x, y, z + 880), (96, 55, 255), 520, 1450)
 
 
 def _subway_beacon(actors, mats):
-    # Surface landmark for the underground entrance.
     x, y, z = 0, -4160, 0
     _cube(actors, "SubwaySignPostL", (-260, y, z + 210), (34, 34, 420), mats["metal"])
     _cube(actors, "SubwaySignPostR", (260, y, z + 210), (34, 34, 420), mats["metal"])
