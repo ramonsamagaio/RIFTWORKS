@@ -9,6 +9,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
@@ -24,10 +25,12 @@ ARiftMannequinColossus::ARiftMannequinColossus()
     GetCharacterMovement()->bRunPhysicsWithNoController = true;
     GetCharacterMovement()->bOrientRotationToMovement = false;
 
+    // Weakpoints now occupy the same local vertical band as the capsule/body.
+    // Previous values extended far above the actual visual mesh.
     LegsCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("LegsWeakpoint"));
     LegsCollision->SetupAttachment(GetCapsuleComponent());
-    LegsCollision->SetBoxExtent(FVector(430.0f, 360.0f, 650.0f));
-    LegsCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 520.0f));
+    LegsCollision->SetBoxExtent(FVector(430.0f, 360.0f, 700.0f));
+    LegsCollision->SetRelativeLocation(FVector(0.0f, 0.0f, -900.0f));
     LegsCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     LegsCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
     LegsCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -35,8 +38,8 @@ ARiftMannequinColossus::ARiftMannequinColossus()
 
     TorsoCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("TorsoWeakpoint"));
     TorsoCollision->SetupAttachment(GetCapsuleComponent());
-    TorsoCollision->SetBoxExtent(FVector(620.0f, 430.0f, 560.0f));
-    TorsoCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 1900.0f));
+    TorsoCollision->SetBoxExtent(FVector(620.0f, 430.0f, 540.0f));
+    TorsoCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 280.0f));
     TorsoCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     TorsoCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
     TorsoCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -44,8 +47,8 @@ ARiftMannequinColossus::ARiftMannequinColossus()
 
     HeadCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("HeadWeakpoint"));
     HeadCollision->SetupAttachment(GetCapsuleComponent());
-    HeadCollision->SetBoxExtent(FVector(360.0f, 320.0f, 330.0f));
-    HeadCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 2950.0f));
+    HeadCollision->SetBoxExtent(FVector(360.0f, 320.0f, 320.0f));
+    HeadCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 1160.0f));
     HeadCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     HeadCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
     HeadCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -65,21 +68,56 @@ void ARiftMannequinColossus::BeginPlay()
         }
     }
 
-    if (GetMesh())
-    {
-        GetMesh()->SetVisibility(true, true);
-        GetMesh()->SetOwnerNoSee(false);
-        GetMesh()->SetRelativeScale3D(FVector(VisualScale));
-        GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -1420.0f));
-        GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
-        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-    }
+    NormalizeVisualToCapsule();
+    GroundCapsuleToWorld();
 
     PrototypeRouteCenter = GetActorLocation();
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
     GetCharacterMovement()->bRunPhysicsWithNoController = true;
     EnvironmentPulseTimer = FMath::FRandRange(0.0f, EnvironmentPulseInterval);
     UpdatePrototypeAnimation();
+}
+
+void ARiftMannequinColossus::NormalizeVisualToCapsule()
+{
+    if (!GetMesh())
+    {
+        return;
+    }
+
+    GetMesh()->SetVisibility(true, true);
+    GetMesh()->SetOwnerNoSee(false);
+    GetMesh()->SetRelativeScale3D(FVector(VisualScale));
+    GetMesh()->SetRelativeRotation(FRotator::ZeroRotator);
+
+    float RelativeZ = -GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+    if (const USkeletalMesh* MeshAsset = GetMesh()->GetSkeletalMeshAsset())
+    {
+        const FBoxSphereBounds Bounds = MeshAsset->GetBounds();
+        const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        RelativeZ = -GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - LocalBottom * VisualScale;
+    }
+    GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, RelativeZ));
+    GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+}
+
+void ARiftMannequinColossus::GroundCapsuleToWorld()
+{
+    if (!GetWorld() || !GetCapsuleComponent())
+    {
+        return;
+    }
+
+    const FVector Current = GetActorLocation();
+    const FVector Start = Current + FVector(0.0f, 0.0f, 4500.0f);
+    const FVector End = Current - FVector(0.0f, 0.0f, 5000.0f);
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftColossusGround), false, this);
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+        SetActorLocation(FVector(Current.X, Current.Y, Hit.ImpactPoint.Z + HalfHeight + 2.0f), false, nullptr, ETeleportType::TeleportPhysics);
+    }
 }
 
 void ARiftMannequinColossus::Tick(float DeltaSeconds)
@@ -126,7 +164,7 @@ void ARiftMannequinColossus::PulseEnvironment()
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(RiftColossusEnvironment), false, this);
     TArray<FOverlapResult> Results;
-    const FVector Origin = GetActorLocation() + GetActorForwardVector() * 250.0f + FVector(0.0f, 0.0f, 120.0f);
+    const FVector Origin = GetActorLocation() + GetActorForwardVector() * 250.0f - FVector(0.0f, 0.0f, 1250.0f);
 
     if (!GetWorld()->OverlapMultiByObjectType(
         Results,
@@ -204,6 +242,16 @@ void ARiftMannequinColossus::PulseEnvironment()
     }
 }
 
+bool ARiftMannequinColossus::IsAnimationCompatible(const UAnimSequenceBase* Animation) const
+{
+    if (!Animation || !GetMesh())
+    {
+        return false;
+    }
+    const USkeletalMesh* MeshAsset = GetMesh()->GetSkeletalMeshAsset();
+    return MeshAsset && MeshAsset->GetSkeleton() && Animation->GetSkeleton() == MeshAsset->GetSkeleton();
+}
+
 void ARiftMannequinColossus::UpdatePrototypeAnimation()
 {
     if (!GetMesh())
@@ -212,11 +260,23 @@ void ARiftMannequinColossus::UpdatePrototypeAnimation()
     }
 
     UAnimSequenceBase* Desired = GetVelocity().Size2D() > 8.0f ? WalkAnimation.Get() : IdleAnimation.Get();
-    if (!Desired)
+    if (!IsAnimationCompatible(Desired))
     {
-        Desired = WalkAnimation ? WalkAnimation.Get() : IdleAnimation.Get();
+        if (IsAnimationCompatible(WalkAnimation))
+        {
+            Desired = WalkAnimation.Get();
+        }
+        else if (IsAnimationCompatible(IdleAnimation))
+        {
+            Desired = IdleAnimation.Get();
+        }
+        else
+        {
+            return;
+        }
     }
-    if (Desired && Desired != CurrentAnimation)
+
+    if (Desired != CurrentAnimation)
     {
         CurrentAnimation = Desired;
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
