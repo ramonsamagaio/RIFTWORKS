@@ -2,6 +2,7 @@
 
 #include "RiftGameplayActors.h"
 #include "RiftPlayerCharacter.h"
+#include "RiftWorldDirector.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -24,6 +25,12 @@ bool URiftPersistenceSubsystem::SaveRiftGame(ARiftPlayerCharacter* Player)
     Save->bFlashlightOn = Player->bFlashlightOn;
     Save->Scrap = Player->Scrap;
     Save->Components = Player->Components;
+
+    for (TActorIterator<ARiftWorldDirector> It(GetWorld()); It; ++It)
+    {
+        Save->WorldSeed = It->WorldSeed;
+        break;
+    }
 
     for (TActorIterator<ARiftBaseBeacon> It(GetWorld()); It; ++It)
     {
@@ -53,6 +60,22 @@ bool URiftPersistenceSubsystem::LoadRiftGame(ARiftPlayerCharacter* Player)
     if (!Save)
     {
         return false;
+    }
+
+    ARiftWorldDirector* WorldDirector = nullptr;
+    for (TActorIterator<ARiftWorldDirector> It(GetWorld()); It; ++It)
+    {
+        WorldDirector = *It;
+        break;
+    }
+    if (WorldDirector)
+    {
+        const bool bSeedChanged = WorldDirector->WorldSeed != Save->WorldSeed;
+        WorldDirector->WorldSeed = Save->WorldSeed;
+        if (bSeedChanged)
+        {
+            WorldDirector->RegenerateVisibleWorld();
+        }
     }
 
     Player->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
