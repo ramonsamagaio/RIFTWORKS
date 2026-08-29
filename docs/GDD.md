@@ -1319,7 +1319,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Godot project initialized.
 - [x] Main playable scene exists.
 - [x] First-person movement/camera foundation.
-- [ ] Production character controller.
+- [x] Production character controller.
 - [ ] Input rebinding/settings UI.
 - [x] Save/load architecture.
 - [x] Seeded world persistence architecture.
@@ -1344,7 +1344,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] First underground descent/blockout.
 - [x] First deep chamber/blockout.
 - [x] Seeded surface chunk generator.
-- [ ] Road graph.
+- [x] Road graph.
 - [x] District/POI rules.
 - [x] Natural biome transitions.
 - [x] Underground graph generator.
@@ -1429,7 +1429,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - [x] Luminance component.
 - [x] Thermal/Cryo component.
 - [x] Gravity component.
-- [ ] High-end Phase concept.
+- [x] High-end Phase concept.
 
 ## UI / feedback
 - [x] Prototype HUD.
@@ -1470,7 +1470,7 @@ This checklist is part of the GDD and must be updated as implementation changes.
 
 ## Current implementation snapshot
 
-- First-person perspective and fullscreen presentation are locked project decisions; the Unreal player uses an eye-height FPS camera, animated shadow body, crouch, sprint, combat and a restrained premium flashlight.
+- First-person perspective and fullscreen presentation are locked project decisions; the active Unreal pawn is now a production-controller subclass with stamina, sprint exhaustion/recovery, smooth crouch camera height, restrained walk/sprint bob and a subtle sprint FOV response.
 - The current Unreal vertical slice prioritizes readable permanent darkness, low volumetric scattering, wet/rough material response, staged low-poly architecture, landmarks and walkable underground spaces rather than grey-box-only presentation.
 - The inventory now has physical mass and volume limits for light salvage; heavy components remain world-space cargo handled by carrying, carts, winches, conveyors and lifts instead of disappearing into an abstract backpack.
 - Salvage progression supports dismantling and Tier 1-4 recovery capability, including tool gates and mechanical recovery requirements for industrial machinery.
@@ -1478,8 +1478,9 @@ This checklist is part of the GDD and must be updated as implementation changes.
 - The power grid supports generation, consumption, storage, charge/discharge, priorities, powered feedback, detectable signatures and logic-driven blackout behavior.
 - The FAS exposes grid-snapped placement plus Weld, Hinge, Slider/Piston and Rope/Winch constraints as generic reusable behaviors alongside platforms, beams, wheels and motors.
 - Two functional outposts are staged as smaller respawn/storage infrastructure nodes, beginning the transition from one base to a player-built network across surface and underground regions.
-- Breach engineering now includes Repulsion, Attraction, Luminance, Gravity, Thermal and Cryo fields; Thermal affects organisms and lifts physics cargo while Cryo slows characters and damps moving rigid bodies, and both accept logic signals.
+- Breach engineering now includes Repulsion, Attraction, Luminance, Gravity, Thermal, Cryo and Phase fields; Phase temporarily removes solidity/gravity from physical cargo and restores original collision state on exit.
 - Humanoid enemies use the shared mannequin animation family with sight/hearing/flashlight awareness, while a rigid-part procedural crawler provides a production-efficient non-humanoid threat.
 - The mannequin Colossus roams with segmented weakpoint collisions, engineered harpoon support and environmental trampling that can knock physical construction loose, break nearby joints, disable power devices and remove fragile tagged props.
-- Unreal world streaming is deterministic and budgeted, sorting pending chunks by player distance and materializing only a configurable number per refresh; the save system now persists and restores the procedural WorldSeed before regenerating visible chunks.
-- The native fallback HUD now reports backpack kg/L usage, global generation/load/storage/signature and online outpost/storage totals in addition to health, flashlight and interaction state.
+- Unreal world streaming is deterministic and budgeted, sorting pending chunks by player distance and materializing only a configurable number per refresh; the save system persists and restores the procedural WorldSeed before regenerating visible chunks.
+- A deterministic Blueprintable road-graph actor now generates guaranteed connected arterial spines, secondary branches, cross streets and ring-road fragments with instanced asphalt/curb geometry for later procedural district integration.
+- The native fallback HUD now reports stamina, backpack kg/L usage, global generation/load/storage/signature and online outpost/storage totals in addition to health, flashlight and interaction state.
