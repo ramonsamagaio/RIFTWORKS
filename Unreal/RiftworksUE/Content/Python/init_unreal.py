@@ -15,6 +15,7 @@ try:
     import riftworks_logistics_machines
     import riftworks_creatures
     import riftworks_breach_progression
+    import riftworks_network_temperature
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -43,8 +44,9 @@ try:
     riftworks_logistics_machines.apply_all()
     riftworks_creatures.apply_all()
     riftworks_breach_progression.apply_all()
+    riftworks_network_temperature.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature order."
     )
