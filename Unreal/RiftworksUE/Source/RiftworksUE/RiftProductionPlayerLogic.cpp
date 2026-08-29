@@ -1,5 +1,6 @@
 #include "RiftProductionPlayer.h"
 
+#include "RiftGameplayActors.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 
