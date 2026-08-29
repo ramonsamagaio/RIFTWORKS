@@ -116,9 +116,17 @@ void ARiftHUD::DrawHUD()
                 : TEXT("BUILD MODE   RMB PLACE   WHEEL PIECE   R ROTATE   Q ANCHOR   B EXIT");
             DrawText(BuildHelp, Warm, SafeMargin, H - 48.0f, Font, 0.95f, false);
         }
+        else if (ProductionPlayer)
+        {
+            const FString UtilityHelp = FString::Printf(
+                TEXT("G JOINT   T JOINT TYPE   C UTILITY   MMB PLACE %s (%s)   Y SIGNAL LINK   |   F LIGHT  E USE  B BUILD"),
+                *StaticEnum<ERiftUtilityBuildMode>()->GetNameStringByValue(static_cast<int64>(ProductionPlayer->SelectedUtilityBuildMode)),
+                *ProductionPlayer->GetUtilityBuildCostText());
+            DrawText(UtilityHelp, Dim, SafeMargin, H - 48.0f, Font, 0.86f, false);
+        }
         else
         {
-            DrawText(TEXT("F LIGHT   E USE   SHIFT SPRINT   CTRL CROUCH   LMB FIRE   B BUILD   G CONNECT   T JOINT MODE   X CANCEL"), Dim, SafeMargin, H - 48.0f, Font, 0.90f, false);
+            DrawText(TEXT("F LIGHT   E USE   SHIFT SPRINT   CTRL CROUCH   LMB FIRE   B BUILD"), Dim, SafeMargin, H - 48.0f, Font, 0.90f, false);
         }
     }
 
