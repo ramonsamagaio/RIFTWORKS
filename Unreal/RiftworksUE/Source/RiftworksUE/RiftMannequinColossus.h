@@ -34,12 +34,29 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus")
     float VisualScale = 16.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Environment")
+    float EnvironmentInteractionRadius = 980.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Environment")
+    float EnvironmentBreakRadius = 560.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Environment")
+    float EnvironmentImpulse = 185000.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Colossus|Environment")
+    float EnvironmentPulseInterval = 0.28f;
+
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnEnvironmentImpact(AActor* AffectedActor);
+
 protected:
     virtual void BeginPlay() override;
 
     FVector PrototypeRouteCenter = FVector::ZeroVector;
     float PrototypeRouteAngle = 0.0f;
+    float EnvironmentPulseTimer = 0.0f;
     TObjectPtr<UAnimSequenceBase> CurrentAnimation;
 
     void UpdatePrototypeAnimation();
+    void PulseEnvironment();
 };
