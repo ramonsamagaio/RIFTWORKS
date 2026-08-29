@@ -42,7 +42,6 @@ try:
     riftworks_weathering.apply_all()
     riftworks_landmarks.apply_all()
     riftworks_encounter_staging.apply_all()
-    riftworks_instance_polish.apply_all()
     riftworks_salvage_fabrication.apply_all()
     riftworks_logistics_machines.apply_all()
     riftworks_creatures.apply_all()
@@ -52,10 +51,8 @@ try:
     riftworks_engineering_proving_ground.apply_all()
     riftworks_production_player.apply_all()
 
-    # IMPORTANT: this audit intentionally runs last. Earlier migration/dressing
-    # passes were authored at different times and used different pivot/rig
-    # assumptions. The final pass normalizes runtime Skeleton compatibility,
-    # character mesh transforms, generated primitive axes and staged grounding.
+    # Always last. All generated actors are normalized after every older pass,
+    # so legacy pivot/Rotator assumptions cannot re-corrupt the playable map.
     riftworks_instance_polish.apply_all()
 except Exception as exc:
     unreal.log_error(
