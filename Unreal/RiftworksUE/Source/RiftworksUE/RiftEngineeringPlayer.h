@@ -11,4 +11,9 @@ class RIFTWORKSUE_API ARiftEngineeringPlayerCharacter : public ARiftProductionPl
 
 public:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+private:
+    void UtilityBuildNextInput();
+    void UtilityBuildPlaceInput();
+    void LogicConnectInput();
 };
