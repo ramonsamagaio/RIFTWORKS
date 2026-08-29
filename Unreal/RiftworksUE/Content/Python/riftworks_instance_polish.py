@@ -13,6 +13,7 @@ CHARACTER_BP_PATHS = [
     f"{rw.BP_DIR}/BP_RiftHumanoid",
 ]
 COLOSSUS_BP_PATH = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftMannequinColossus"
+ROTATOR_AUDIT_TAG = "RiftRotatorAxesAuditedV2"
 
 
 def _all_components(actor, cls):
@@ -87,12 +88,11 @@ def _normalize_name(value: str) -> str:
 
 
 def _runtime_character_assets():
-    """Choose the mesh that actually owns the animation-library skeleton.
+    """Use only a mesh that owns the same Unreal Skeleton as the animations.
 
-    The Female Mannequin is a retarget target. It must not be force-bound to the
-    UAL1 Skeleton asset merely because the source rigs have matching bone names.
-    Until an IK Retargeter asset is authored, runtime characters use the mesh
-    imported with UAL1 so every animation is skeleton-native and cannot T-pose.
+    Female Mannequin is a retarget target, not permission to force-bind its FBX
+    onto the UAL1 Skeleton asset. Until an IK Retargeter is authored, the safest
+    runtime visual is the mesh imported with the animation library itself.
     """
     animations = rw.find_by_type(rw.ANIM_DIR, unreal.AnimSequence)
     meshes = rw.find_by_type(rw.ANIM_DIR, unreal.SkeletalMesh)
@@ -111,8 +111,6 @@ def _runtime_character_assets():
             best_score = score
 
     if not best_mesh:
-        # Last-resort compatibility search. Never choose a mesh whose Skeleton is
-        # unrelated to every imported animation.
         for mesh in rw.find_by_type(rw.CHAR_DIR, unreal.SkeletalMesh):
             skeleton = _asset_skeleton(mesh)
             score = sum(1 for anim in animations if _same_asset(_asset_skeleton(anim), skeleton))
@@ -136,9 +134,6 @@ def _pick_animation(animations, candidates):
 
 
 def _mesh_floor_offset(mesh, capsule_half_height=92.0) -> float:
-    # Imported FBX/GLB assets do not all share the same pivot. Compute the
-    # placement from the actual local bounds instead of assuming -88/-90 UE
-    # mannequin defaults.
     try:
         bounds = mesh.get_bounds()
         bottom = float(bounds.origin.z - bounds.box_extent.z)
@@ -157,7 +152,7 @@ def _assign_mesh_component(component, mesh, capsule_half_height=92.0, scale=1.0)
         rw.safe_set(component, "skeletal_mesh", mesh)
     try:
         component.set_relative_location(unreal.Vector(0.0, 0.0, _mesh_floor_offset(mesh, capsule_half_height)))
-        component.set_relative_rotation(unreal.Rotator(0.0, 0.0, 0.0))
+        component.set_relative_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=0.0))
         component.set_relative_scale3d(unreal.Vector(scale, scale, scale))
     except Exception:
         pass
@@ -214,7 +209,7 @@ def _sanitize_character_blueprints(mesh, animations):
 
 
 def _desired_floor_z(y: float):
-    # Only flat staging bands. Sloped stair corridors are deliberately skipped.
+    # Flat staging bands only. Sloped stair corridors remain authored geometry.
     if y > -4200.0:
         return 24.0
     if -8350.0 < y <= -6900.0:
@@ -230,11 +225,11 @@ def _ground_staged_actor(actor) -> bool:
         floor_z = _desired_floor_z(float(location.y))
         if floor_z is None:
             return False
-        origin, extent = actor.get_actor_bounds(False)
+        # Colliding bounds intentionally exclude light attenuation volumes and
+        # other visual-only components that previously polluted grounding.
+        origin, extent = actor.get_actor_bounds(True)
         bottom = float(origin.z - extent.z)
         delta = floor_z - bottom
-        # Large differences usually mean a deliberately elevated prop or bad
-        # bounds. Do not bulldoze authored landmarks during the audit.
         if 2.0 < abs(delta) <= 360.0:
             actor.set_actor_location(unreal.Vector(location.x, location.y, location.z + delta), False, False)
             return True
@@ -249,16 +244,63 @@ def _is_grounded_gameplay_actor(actor, label: str) -> bool:
     except Exception:
         cls = ""
     label_l = label.lower()
-    tokens = (
+    class_tokens = (
         "rifthumanoid", "riftsalvage", "riftpowerdevice", "riftbasebeacon",
         "riftoutpost", "riftcargocart", "riftconveyor", "riftfreightlift",
         "riftrecoverywinch", "riftfabricator", "riftlogicnode", "riftcrawler",
         "riftbreachgolem",
     )
-    return any(token in cls for token in tokens) or any(token in label_l for token in (
+    label_tokens = (
         "humanoid", "salvage", "cargo", "generator", "battery", "floodlight",
         "starterbase", "outpost", "fabricator", "crawler",
-    ))
+    )
+    return any(token in cls for token in class_tokens) or any(token in label_l for token in label_tokens)
+
+
+def _has_audit_tag(actor) -> bool:
+    try:
+        return actor.actor_has_tag(ROTATOR_AUDIT_TAG)
+    except Exception:
+        try:
+            return ROTATOR_AUDIT_TAG in [str(tag) for tag in actor.get_editor_property("tags")]
+        except Exception:
+            return False
+
+
+def _add_audit_tag(actor):
+    try:
+        tags = list(actor.get_editor_property("tags"))
+        if ROTATOR_AUDIT_TAG not in [str(tag) for tag in tags]:
+            tags.append(ROTATOR_AUDIT_TAG)
+            actor.set_editor_property("tags", tags)
+    except Exception:
+        pass
+
+
+def _migrate_legacy_python_rotator(actor, label: str) -> bool:
+    """Repair Python Rotator positional calls authored with C++ argument order.
+
+    FRotator C++ constructor: (Pitch, Yaw, Roll)
+    unreal.Rotator Python constructor: (Roll, Pitch, Yaw)
+
+    Old scripts passed C++ order positionally, so the stored properties are:
+      Roll=old Pitch, Pitch=old Yaw, Yaw=old Roll.
+    Convert them back once, then tag the actor so repeated editor opens are safe.
+    """
+    if not label.startswith("RIFT_") or _has_audit_tag(actor):
+        return False
+    try:
+        old = actor.get_actor_rotation()
+        changed = abs(old.roll) > 0.01 or abs(old.pitch) > 0.01 or abs(old.yaw) > 0.01
+        if changed:
+            actor.set_actor_rotation(
+                unreal.Rotator(roll=old.yaw, pitch=old.roll, yaw=old.pitch),
+                False,
+            )
+        _add_audit_tag(actor)
+        return changed
+    except Exception:
+        return False
 
 
 def _sanitize_orientation(actor, label: str):
@@ -267,35 +309,46 @@ def _sanitize_orientation(actor, label: str):
     except Exception:
         return
 
-    # Preserve player-authored engineering transforms. Only normalize staged
-    # gameplay actors and known primitive props generated by our own scripts.
     if _is_grounded_gameplay_actor(actor, label):
         try:
-            actor.set_actor_rotation(unreal.Rotator(0.0, rotation.yaw, 0.0), False)
+            actor.set_actor_rotation(
+                unreal.Rotator(roll=0.0, pitch=0.0, yaw=rotation.yaw),
+                False,
+            )
+            rotation = actor.get_actor_rotation()
         except Exception:
             pass
 
+    # Cylinder axis is Z. Wheels/long pipes need a 90-degree roll to make the
+    # cylinder axis horizontal; preserve the actor's corrected world yaw.
     if "_Wheel_" in label or "DumpsterWheel" in label:
         try:
-            actor.set_actor_rotation(unreal.Rotator(0.0, rotation.yaw, 90.0), False)
+            actor.set_actor_rotation(
+                unreal.Rotator(roll=90.0, pitch=0.0, yaw=rotation.yaw),
+                False,
+            )
         except Exception:
             pass
     elif "UG_PipeRed" in label:
         try:
-            actor.set_actor_rotation(unreal.Rotator(0.0, rotation.yaw, 90.0), False)
+            actor.set_actor_rotation(
+                unreal.Rotator(roll=90.0, pitch=0.0, yaw=rotation.yaw),
+                False,
+            )
         except Exception:
             pass
 
 
 def _sanitize_level_instances(mesh):
     if not rw.asset_library.does_asset_exist(rw.BOOTSTRAP_MAP):
-        return (0, 0)
+        return (0, 0, 0)
     level = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     level.load_level(rw.BOOTSTRAP_MAP)
 
     grounded = 0
-    oriented = 0
+    reoriented = 0
+    axis_migrated = 0
     mats = rv.ensure_material_library()
 
     for actor in list(actors.get_all_level_actors()):
@@ -303,6 +356,8 @@ def _sanitize_level_instances(mesh):
             label = actor.get_actor_label()
         except Exception:
             label = ""
+
+        axis_migrated += 1 if _migrate_legacy_python_rotator(actor, label) else 0
 
         if label == "RIFT_AUTO_WalkerColossus":
             if mesh:
@@ -338,28 +393,30 @@ def _sanitize_level_instances(mesh):
         if before is not None:
             try:
                 after = actor.get_actor_rotation()
-                if abs(after.pitch - before.pitch) > 0.1 or abs(after.roll - before.roll) > 0.1:
-                    oriented += 1
+                if abs(after.pitch - before.pitch) > 0.1 or abs(after.roll - before.roll) > 0.1 or abs(after.yaw - before.yaw) > 0.1:
+                    reoriented += 1
             except Exception:
                 pass
+
         if _is_grounded_gameplay_actor(actor, label) and label != "RIFT_AUTO_WalkerColossus":
             grounded += 1 if _ground_staged_actor(actor) else 0
 
     level.save_current_level()
-    return grounded, oriented
+    return grounded, reoriented, axis_migrated
 
 
 def apply_all():
     mesh, skeleton, animations, score = _runtime_character_assets()
     _sanitize_character_blueprints(mesh, animations)
-    grounded, oriented = _sanitize_level_instances(mesh)
+    grounded, reoriented, axis_migrated = _sanitize_level_instances(mesh)
 
     mesh_name = mesh.get_path_name() if mesh else "NONE"
     skeleton_name = skeleton.get_path_name() if skeleton else "NONE"
     rw.log(
         "FINAL AUDIT complete | "
         f"runtime_mesh={mesh_name} | skeleton={skeleton_name} | native_clips={len(animations)} | "
-        f"compatibility_score={score} | grounded={grounded} | reoriented={oriented}"
+        f"compatibility_score={score} | rotator_axes_migrated={axis_migrated} | "
+        f"grounded={grounded} | reoriented={reoriented}"
     )
 
 
