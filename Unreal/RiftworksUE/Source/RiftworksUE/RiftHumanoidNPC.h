@@ -118,7 +118,6 @@ protected:
     void UpdateBehavior(float DeltaSeconds);
     void UpdateFallbackAnimation();
     bool IsAnimationCompatible(const UAnimSequenceBase* Animation) const;
-    UAnimSequenceBase* FirstCompatibleAnimation(std::initializer_list<UAnimSequenceBase*> Candidates) const;
     void PlayOneShot(UAnimSequenceBase* Animation, float MinimumLock = 0.15f);
     void PickPatrolPoint();
     void FireAtPlayer();
