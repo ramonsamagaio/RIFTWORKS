@@ -32,6 +32,7 @@ void ARiftProductionPlayerCharacter::SetupPlayerInputComponent(UInputComponent* 
         return;
     }
 
+    PlayerInputComponent->BindAction(TEXT("ProductionBuildPlace"), IE_Pressed, this, &ARiftProductionPlayerCharacter::ProductionBuildPlacePressed);
     PlayerInputComponent->BindAction(TEXT("EngineeringConnect"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringConnectPressed);
     PlayerInputComponent->BindAction(TEXT("EngineeringModeNext"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringModeNextPressed);
     PlayerInputComponent->BindAction(TEXT("EngineeringCancel"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringCancelPressed);
@@ -42,6 +43,7 @@ void ARiftProductionPlayerCharacter::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     UpdateStamina(DeltaSeconds);
     UpdateFirstPersonCameraMotion(DeltaSeconds);
+    UpdateBuildCostPrompt();
     UpdateEngineeringPrompt();
 }
 
@@ -129,6 +131,126 @@ void ARiftProductionPlayerCharacter::UpdateFirstPersonCameraMotion(float DeltaSe
         DesiredFOV,
         DeltaSeconds,
         7.5f));
+}
+
+FString ARiftProductionPlayerCharacter::GetSelectedBuildCostText() const
+{
+    switch (SelectedBuildPiece)
+    {
+        case ERiftBuildPiece::Platform: return TEXT("3 scrap");
+        case ERiftBuildPiece::Beam: return TEXT("2 scrap");
+        case ERiftBuildPiece::Wheel: return TEXT("1 scrap + 2 bolts");
+        case ERiftBuildPiece::MotorWheel: return TEXT("2 scrap + 2 bolts + 1 motor + 1 electronics");
+        default: return TEXT("materials");
+    }
+}
+
+bool ARiftProductionPlayerCharacter::CanAffordSelectedBuildPiece() const
+{
+    switch (SelectedBuildPiece)
+    {
+        case ERiftBuildPiece::Platform:
+            return Scrap >= 3;
+        case ERiftBuildPiece::Beam:
+            return Scrap >= 2;
+        case ERiftBuildPiece::Wheel:
+            return Scrap >= 1 && GetComponentCount(TEXT("bolts")) >= 2;
+        case ERiftBuildPiece::MotorWheel:
+            return Scrap >= 2 && GetComponentCount(TEXT("bolts")) >= 2 && GetComponentCount(TEXT("motor")) >= 1 && GetComponentCount(TEXT("electronics")) >= 1;
+        default:
+            return false;
+    }
+}
+
+bool ARiftProductionPlayerCharacter::ConsumeSelectedBuildCost()
+{
+    if (!CanAffordSelectedBuildPiece())
+    {
+        return false;
+    }
+
+    switch (SelectedBuildPiece)
+    {
+        case ERiftBuildPiece::Platform:
+            Scrap -= 3;
+            break;
+        case ERiftBuildPiece::Beam:
+            Scrap -= 2;
+            break;
+        case ERiftBuildPiece::Wheel:
+            Scrap -= 1;
+            ConsumeComponentItem(TEXT("bolts"), 2);
+            break;
+        case ERiftBuildPiece::MotorWheel:
+            Scrap -= 2;
+            ConsumeComponentItem(TEXT("bolts"), 2);
+            ConsumeComponentItem(TEXT("motor"), 1);
+            ConsumeComponentItem(TEXT("electronics"), 1);
+            break;
+        default:
+            return false;
+    }
+
+    BP_OnInventoryChanged();
+    return true;
+}
+
+void ARiftProductionPlayerCharacter::ProductionBuildPlacePressed()
+{
+    if (!bBuildMode)
+    {
+        return;
+    }
+
+    if (!CanAffordSelectedBuildPiece())
+    {
+        CurrentInteractionText = FText::FromString(FString::Printf(
+            TEXT("INSUFFICIENT MATERIALS | %s costs %s"),
+            *StaticEnum<ERiftBuildPiece>()->GetNameStringByValue(static_cast<int64>(SelectedBuildPiece)),
+            *GetSelectedBuildCostText()));
+        return;
+    }
+
+    if (ConsumeSelectedBuildCost())
+    {
+        if (!PlaceBuildPiece())
+        {
+            // Refund only when spawning the final piece itself failed.
+            switch (SelectedBuildPiece)
+            {
+                case ERiftBuildPiece::Platform: Scrap += 3; break;
+                case ERiftBuildPiece::Beam: Scrap += 2; break;
+                case ERiftBuildPiece::Wheel:
+                    Scrap += 1;
+                    AddComponentItem(TEXT("bolts"), 2);
+                    break;
+                case ERiftBuildPiece::MotorWheel:
+                    Scrap += 2;
+                    AddComponentItem(TEXT("bolts"), 2);
+                    AddComponentItem(TEXT("motor"), 1);
+                    AddComponentItem(TEXT("electronics"), 1);
+                    break;
+                default: break;
+            }
+            BP_OnInventoryChanged();
+        }
+    }
+}
+
+void ARiftProductionPlayerCharacter::UpdateBuildCostPrompt()
+{
+    if (!bBuildMode)
+    {
+        return;
+    }
+
+    const FString Existing = CurrentInteractionText.ToString();
+    const FString Affordability = CanAffordSelectedBuildPiece() ? TEXT("READY") : TEXT("NEED MATERIALS");
+    CurrentInteractionText = FText::FromString(FString::Printf(
+        TEXT("%s | COST %s | %s"),
+        *Existing,
+        *GetSelectedBuildCostText(),
+        *Affordability));
 }
 
 ARiftAssemblyPart* ARiftProductionPlayerCharacter::TraceEngineeringPart(FHitResult* OutHit) const
