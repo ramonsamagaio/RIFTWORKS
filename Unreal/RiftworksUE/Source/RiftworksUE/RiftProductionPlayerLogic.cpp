@@ -16,11 +16,11 @@ AActor* ARiftProductionPlayerCharacter::TraceEngineeringActor(FHitResult* OutHit
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftLogicTrace), false, this);
     if (BuildPreview)
     {
-        Params.AddIgnoredActor(BuildPreview);
+        Params.AddIgnoredActor(BuildPreview.Get());
     }
     if (CarriedSalvage)
     {
-        Params.AddIgnoredActor(CarriedSalvage);
+        Params.AddIgnoredActor(CarriedSalvage.Get());
     }
 
     if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
@@ -130,7 +130,7 @@ void ARiftProductionPlayerCharacter::UtilityBuildPlacePressed()
     FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftUtilityPlacement), false, this);
     if (CarriedSalvage)
     {
-        Params.AddIgnoredActor(CarriedSalvage);
+        Params.AddIgnoredActor(CarriedSalvage.Get());
     }
 
     FVector Location = End;
