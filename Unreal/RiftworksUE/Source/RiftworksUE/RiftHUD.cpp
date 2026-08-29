@@ -111,11 +111,14 @@ void ARiftHUD::DrawHUD()
         }
         else if (Player->bBuildMode)
         {
-            DrawText(TEXT("BUILD MODE   RMB PLACE   WHEEL PIECE   R ROTATE   Q ANCHOR   B EXIT"), Warm, SafeMargin, H - 48.0f, Font, 0.95f, false);
+            const FString BuildHelp = ProductionPlayer
+                ? FString::Printf(TEXT("BUILD   RMB PLACE   WHEEL PIECE   R ROTATE   Q ANCHOR   B EXIT   |   %s"), *ProductionPlayer->GetSelectedBuildCostText())
+                : TEXT("BUILD MODE   RMB PLACE   WHEEL PIECE   R ROTATE   Q ANCHOR   B EXIT");
+            DrawText(BuildHelp, Warm, SafeMargin, H - 48.0f, Font, 0.95f, false);
         }
         else
         {
-            DrawText(TEXT("F LIGHT   E INTERACT   SHIFT SPRINT   CTRL CROUCH   LMB FIRE   B BUILD"), Dim, SafeMargin, H - 48.0f, Font, 0.95f, false);
+            DrawText(TEXT("F LIGHT   E USE   SHIFT SPRINT   CTRL CROUCH   LMB FIRE   B BUILD   G CONNECT   T JOINT MODE   X CANCEL"), Dim, SafeMargin, H - 48.0f, Font, 0.90f, false);
         }
     }
 
