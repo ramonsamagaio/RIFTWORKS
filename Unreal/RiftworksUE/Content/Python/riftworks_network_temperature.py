@@ -29,10 +29,12 @@ def _ensure_blueprints(materials):
     outpost_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftOutpost"
     thermal_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftThermalField"
     cryo_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftCryoField"
+    phase_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftPhaseField"
 
     rw.create_blueprint("BP_RiftOutpost", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftOutpostBeacon")
     rw.create_blueprint("BP_RiftThermalField", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftTemperatureField")
     rw.create_blueprint("BP_RiftCryoField", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftTemperatureField")
+    rw.create_blueprint("BP_RiftPhaseField", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftPhaseField")
 
     outpost = rw.blueprint_cdo(outpost_path)
     if outpost:
@@ -67,7 +69,16 @@ def _ensure_blueprints(materials):
         rw.safe_set(cryo, "cryo_character_speed", 145.0)
         rw.asset_library.save_asset(cryo_path, only_if_is_dirty=False)
 
-    return outpost_path, thermal_path, cryo_path
+    phase = rw.blueprint_cdo(phase_path)
+    if phase:
+        try:
+            _material(phase.get_editor_property("core_mesh"), materials.get("breach"))
+        except Exception:
+            pass
+        rw.safe_set(phase, "radius", 620.0)
+        rw.asset_library.save_asset(phase_path, only_if_is_dirty=False)
+
+    return outpost_path, thermal_path, cryo_path, phase_path
 
 
 def _spawn_fragile_barricade(actors, materials, label, location, rotation=(0.0, 0.0, 0.0)):
@@ -76,7 +87,10 @@ def _spawn_fragile_barricade(actors, materials, label, location, rotation=(0.0, 
         if not actor:
             return None
         actor.set_actor_label(PREFIX + label)
-        actor.tags = ["RiftFragile"]
+        try:
+            actor.set_editor_property("tags", [unreal.Name("RiftFragile")])
+        except Exception:
+            pass
         component = actor.static_mesh_component
         component.set_static_mesh(unreal.load_asset("/Engine/BasicShapes/Cube.Cube"))
         component.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
@@ -93,12 +107,13 @@ def apply_all():
         return
 
     materials = rv.ensure_material_library()
-    outpost_path, thermal_path, cryo_path = _ensure_blueprints(materials)
+    outpost_path, thermal_path, cryo_path, phase_path = _ensure_blueprints(materials)
     outpost_cls = rw.blueprint_class(outpost_path)
     thermal_cls = rw.blueprint_class(thermal_path)
     cryo_cls = rw.blueprint_class(cryo_path)
-    if not outpost_cls or not thermal_cls or not cryo_cls:
-        rw.log("Network/temperature pass waiting for native classes")
+    phase_cls = rw.blueprint_class(phase_path)
+    if not outpost_cls or not thermal_cls or not cryo_cls or not phase_cls:
+        rw.log("Network/temperature/phase pass waiting for native classes")
         return
 
     level = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
@@ -136,7 +151,11 @@ def apply_all():
         rw.safe_set(cryo, "cryo_drag_force", 112000.0)
         rw.safe_set(cryo, "cryo_character_speed", 145.0)
 
-    # A cheap but readable trampling test on the Walker route. These are intentionally movable fragile props.
+    phase = _spawn(actors, phase_cls, "PhaseField", (120, -11150, -1240))
+    if phase:
+        rw.safe_set(phase, "radius", 680.0)
+        rw.safe_set(phase, "b_enabled", True)
+
     for index, offset in enumerate((-600, -300, 0, 300, 600)):
         _spawn_fragile_barricade(
             actors,
@@ -151,7 +170,7 @@ def apply_all():
         rw.asset_library.save_directory(rw.ROOT, only_if_is_dirty=False, recursive=True)
     except Exception:
         pass
-    rw.log("GDD network pass ready: two respawn/storage outposts, Thermal/Cryo fields and Walker trampling props")
+    rw.log("GDD network pass ready: outposts, Thermal/Cryo/Phase physics fields and Walker trampling props")
 
 
 if __name__ == "__main__":
