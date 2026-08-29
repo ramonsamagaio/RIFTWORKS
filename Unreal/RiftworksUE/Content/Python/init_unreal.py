@@ -51,8 +51,14 @@ try:
     riftworks_road_graph.apply_all()
     riftworks_engineering_proving_ground.apply_all()
     riftworks_production_player.apply_all()
+
+    # IMPORTANT: this audit intentionally runs last. Earlier migration/dressing
+    # passes were authored at different times and used different pivot/rig
+    # assumptions. The final pass normalizes runtime Skeleton compatibility,
+    # character mesh transforms, generated primitive axes and staged grounding.
+    riftworks_instance_polish.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish audit order."
     )
