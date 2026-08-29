@@ -20,7 +20,7 @@ def _ensure_blueprints(materials):
     winch_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftRecoveryWinch"
     fabricator_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftFabricator"
 
-    rw.create_blueprint("BP_RiftTieredSalvage", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftTieredSalvageActor")
+    rw.create_blueprint("BP_RiftTieredSalvage", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftCapacitySalvageActor")
     rw.create_blueprint("BP_RiftRecoveryWinch", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftRecoveryWinch")
     rw.create_blueprint("BP_RiftFabricator", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftFabricator")
 
@@ -115,7 +115,6 @@ def _spawn_tool(actors, cls, label, location, item_id, display_name, required_ti
 
 
 def _stage_salvage_progression(actors, tiered_cls):
-    # Tier 2 unlock lives in the first workshop, making the first progression step discoverable in minutes.
     _spawn_tool(
         actors, tiered_cls, "ToolTier2", (1325, 1040, 112),
         "recovery_tool_t2", "Pry + Cutting Recovery Kit", 1,
@@ -134,7 +133,6 @@ def _stage_salvage_progression(actors, tiered_cls):
         dismantle_component="motor", dismantle_amount=1,
     )
 
-    # Tier 3 is underground and deliberately paired with a powered recovery winch.
     _spawn_tool(
         actors, tiered_cls, "ToolTier3", (-300, -7440, -780),
         "recovery_tool_t3", "Powered Recovery Toolset", 2,
@@ -152,7 +150,6 @@ def _stage_salvage_progression(actors, tiered_cls):
         dismantle_component="copper_coil", dismantle_amount=2,
     )
 
-    # Tier 4 exists as a real tease rather than a stat-gated chest. It requires deep tools plus a heavy recovery rig.
     _spawn_tool(
         actors, tiered_cls, "ToolTier4", (360, -9870, -1170),
         "recovery_tool_t4", "Industrial Rigging + Cutting Kit", 3,
@@ -170,13 +167,21 @@ def _stage_salvage_progression(actors, tiered_cls):
         dismantle_component="breach_core", dismantle_amount=2,
     )
 
-    # A standardized medical input keeps the fixed-fabrication recipe immediately testable.
     _spawn_tiered(
         actors, tiered_cls, "MedicalSupplies", (-1220, 1430, 112),
         "medical_supplies", "Sealed Medical Supplies", 1,
         amount=2, heavy=False, mass=0.8, dismantle_scrap=1,
         dismantleable=False,
     )
+
+    # Extra loose loot intentionally tests the backpack limits instead of allowing infinite abstract hoarding.
+    for index, x in enumerate((-1140, -1010, -880, -750, -620)):
+        _spawn_tiered(
+            actors, tiered_cls, f"CableBundle{index:02d}", (x, 1660, 108),
+            "cable", "Salvaged Cable Bundle", 1,
+            amount=3, heavy=False, mass=2.7, dismantle_scrap=1,
+            dismantleable=True,
+        )
 
 
 def _stage_recovery_and_fabrication(actors, winch_cls, fabricator_cls):
@@ -231,7 +236,7 @@ def apply_all():
         rw.asset_library.save_directory(rw.ROOT, only_if_is_dirty=False, recursive=True)
     except Exception:
         pass
-    rw.log("GDD salvage progression ready: dismantling, T1-T4 recovery, winch/crane gates and fixed fabrication")
+    rw.log("GDD salvage progression ready: backpack mass/volume limits, dismantling, T1-T4 recovery, winch/crane gates and fixed fabrication")
 
 
 if __name__ == "__main__":
