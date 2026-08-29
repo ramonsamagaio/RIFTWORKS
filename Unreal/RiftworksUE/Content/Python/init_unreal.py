@@ -17,6 +17,7 @@ try:
     import riftworks_breach_progression
     import riftworks_network_temperature
     import riftworks_road_graph
+    import riftworks_engineering_proving_ground
     import riftworks_production_player
 
     required = [
@@ -48,9 +49,10 @@ try:
     riftworks_breach_progression.apply_all()
     riftworks_network_temperature.apply_all()
     riftworks_road_graph.apply_all()
+    riftworks_engineering_proving_ground.apply_all()
     riftworks_production_player.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> production_player order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> instance_polish -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player order."
     )
