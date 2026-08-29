@@ -1,6 +1,9 @@
 #include "RiftProductionPlayer.h"
 
+#include "RiftGameplayActors.h"
 #include "Camera/CameraComponent.h"
+#include "Components/InputComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ARiftProductionPlayerCharacter::ARiftProductionPlayerCharacter()
@@ -18,6 +21,20 @@ void ARiftProductionPlayerCharacter::BeginPlay()
     }
     LastReportedStamina = Stamina;
     BP_OnStaminaChanged(Stamina, MaxStamina, bSprintExhausted);
+    BP_OnEngineeringSelectionChanged(nullptr, SelectedJointMode);
+}
+
+void ARiftProductionPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    if (!PlayerInputComponent)
+    {
+        return;
+    }
+
+    PlayerInputComponent->BindAction(TEXT("EngineeringConnect"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringConnectPressed);
+    PlayerInputComponent->BindAction(TEXT("EngineeringModeNext"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringModeNextPressed);
+    PlayerInputComponent->BindAction(TEXT("EngineeringCancel"), IE_Pressed, this, &ARiftProductionPlayerCharacter::EngineeringCancelPressed);
 }
 
 void ARiftProductionPlayerCharacter::Tick(float DeltaSeconds)
@@ -25,6 +42,7 @@ void ARiftProductionPlayerCharacter::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     UpdateStamina(DeltaSeconds);
     UpdateFirstPersonCameraMotion(DeltaSeconds);
+    UpdateEngineeringPrompt();
 }
 
 void ARiftProductionPlayerCharacter::UpdateStamina(float DeltaSeconds)
@@ -111,4 +129,155 @@ void ARiftProductionPlayerCharacter::UpdateFirstPersonCameraMotion(float DeltaSe
         DesiredFOV,
         DeltaSeconds,
         7.5f));
+}
+
+ARiftAssemblyPart* ARiftProductionPlayerCharacter::TraceEngineeringPart(FHitResult* OutHit) const
+{
+    if (!FirstPersonCamera || !GetWorld())
+    {
+        return nullptr;
+    }
+
+    const FVector Start = FirstPersonCamera->GetComponentLocation();
+    const FVector End = Start + FirstPersonCamera->GetForwardVector() * EngineeringTraceDistance;
+    FHitResult LocalHit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(RiftEngineeringTrace), false, this);
+    if (BuildPreview)
+    {
+        Params.AddIgnoredActor(BuildPreview);
+    }
+    if (CarriedSalvage)
+    {
+        Params.AddIgnoredActor(CarriedSalvage);
+    }
+
+    if (!GetWorld()->LineTraceSingleByChannel(LocalHit, Start, End, ECC_Visibility, Params))
+    {
+        return nullptr;
+    }
+    if (OutHit)
+    {
+        *OutHit = LocalHit;
+    }
+    return Cast<ARiftAssemblyPart>(LocalHit.GetActor());
+}
+
+FString ARiftProductionPlayerCharacter::EngineeringModeName() const
+{
+    const UEnum* Enum = StaticEnum<ERiftJointMode>();
+    return Enum ? Enum->GetNameStringByValue(static_cast<int64>(SelectedJointMode)) : TEXT("Joint");
+}
+
+void ARiftProductionPlayerCharacter::EngineeringConnectPressed()
+{
+    if (bBuildMode)
+    {
+        CurrentInteractionText = FText::FromString(TEXT("Exit Build Mode before connecting parts"));
+        return;
+    }
+
+    ARiftAssemblyPart* AimedPart = TraceEngineeringPart();
+    if (!AimedPart)
+    {
+        CurrentInteractionText = FText::FromString(TEXT("Aim at a placed FAS part to connect it"));
+        return;
+    }
+
+    if (!EngineeringSelectionA || !IsValid(EngineeringSelectionA))
+    {
+        EngineeringSelectionA = AimedPart;
+        BP_OnEngineeringSelectionChanged(EngineeringSelectionA, SelectedJointMode);
+        CurrentInteractionText = FText::FromString(FString::Printf(
+            TEXT("%s selected | aim at second part and press G | T changes joint | X cancels"),
+            *AimedPart->GetName()));
+        return;
+    }
+
+    if (AimedPart == EngineeringSelectionA)
+    {
+        CancelEngineeringSelection();
+        CurrentInteractionText = FText::FromString(TEXT("Engineering selection cancelled"));
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    const FVector JointLocation = (EngineeringSelectionA->GetActorLocation() + AimedPart->GetActorLocation()) * 0.5f;
+    ARiftEngineeringJoint* Joint = GetWorld()->SpawnActor<ARiftEngineeringJoint>(
+        ARiftEngineeringJoint::StaticClass(),
+        JointLocation,
+        FRotator::ZeroRotator,
+        SpawnParams);
+
+    if (!Joint)
+    {
+        CurrentInteractionText = FText::FromString(TEXT("Could not create engineering joint"));
+        return;
+    }
+
+    Joint->Mode = SelectedJointMode;
+    const bool bAttached = Joint->AttachActors(EngineeringSelectionA, AimedPart);
+    if (!bAttached)
+    {
+        Joint->Destroy();
+        CurrentInteractionText = FText::FromString(TEXT("Those parts cannot accept a physics joint"));
+        return;
+    }
+
+    LastCreatedJoint = Joint;
+    BP_OnEngineeringJointCreated(Joint);
+    CurrentInteractionText = FText::FromString(FString::Printf(
+        TEXT("%s joint created | G select another pair | T changes mode"),
+        *EngineeringModeName()));
+    EngineeringSelectionA = nullptr;
+    BP_OnEngineeringSelectionChanged(nullptr, SelectedJointMode);
+}
+
+void ARiftProductionPlayerCharacter::CycleEngineeringJointMode(int32 Direction)
+{
+    constexpr int32 ModeCount = 4;
+    int32 Value = static_cast<int32>(SelectedJointMode);
+    Value = (Value + (Direction >= 0 ? 1 : -1) + ModeCount) % ModeCount;
+    SelectedJointMode = static_cast<ERiftJointMode>(Value);
+    BP_OnEngineeringSelectionChanged(EngineeringSelectionA, SelectedJointMode);
+    CurrentInteractionText = FText::FromString(FString::Printf(
+        TEXT("Engineering joint mode: %s"), *EngineeringModeName()));
+}
+
+void ARiftProductionPlayerCharacter::CancelEngineeringSelection()
+{
+    EngineeringSelectionA = nullptr;
+    BP_OnEngineeringSelectionChanged(nullptr, SelectedJointMode);
+}
+
+void ARiftProductionPlayerCharacter::EngineeringModeNextPressed()
+{
+    CycleEngineeringJointMode(1);
+}
+
+void ARiftProductionPlayerCharacter::EngineeringCancelPressed()
+{
+    CancelEngineeringSelection();
+    CurrentInteractionText = FText::FromString(TEXT("Engineering selection cleared"));
+}
+
+void ARiftProductionPlayerCharacter::UpdateEngineeringPrompt()
+{
+    if (bBuildMode)
+    {
+        return;
+    }
+
+    if (EngineeringSelectionA && !IsValid(EngineeringSelectionA))
+    {
+        EngineeringSelectionA = nullptr;
+    }
+
+    if (EngineeringSelectionA)
+    {
+        CurrentInteractionText = FText::FromString(FString::Printf(
+            TEXT("ENGINEERING %s | first: %s | G second part | T mode | X cancel"),
+            *EngineeringModeName(),
+            *EngineeringSelectionA->GetName()));
+    }
 }
