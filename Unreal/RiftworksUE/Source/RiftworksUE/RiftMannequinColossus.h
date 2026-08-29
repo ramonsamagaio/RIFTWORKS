@@ -57,6 +57,9 @@ protected:
     float EnvironmentPulseTimer = 0.0f;
     TObjectPtr<UAnimSequenceBase> CurrentAnimation;
 
+    bool IsAnimationCompatible(const UAnimSequenceBase* Animation) const;
+    void NormalizeVisualToCapsule();
+    void GroundCapsuleToWorld();
     void UpdatePrototypeAnimation();
     void PulseEnvironment();
 };
