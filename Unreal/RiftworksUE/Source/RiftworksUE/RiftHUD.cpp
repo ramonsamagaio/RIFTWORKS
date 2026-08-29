@@ -1,6 +1,8 @@
 #include "RiftHUD.h"
 
 #include "RiftGameplayActors.h"
+#include "RiftInventoryRules.h"
+#include "RiftOutpostBeacon.h"
 #include "RiftPlayerCharacter.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -29,12 +31,14 @@ void ARiftHUD::DrawHUD()
         float Generation = 0.0f;
         float Consumption = 0.0f;
         float Stored = 0.0f;
+        float Signature = 0.0f;
         for (TActorIterator<ARiftPowerDevice> It(GetWorld()); It; ++It)
         {
             if (!It->bEnabled)
             {
                 continue;
             }
+            Signature += It->GetPowerSignatureStrength();
             if (It->Kind == ERiftPowerKind::Generator)
             {
                 Generation += It->GenerationKW;
@@ -49,14 +53,34 @@ void ARiftHUD::DrawHUD()
             }
         }
 
+        int32 OnlineOutposts = 0;
+        int32 OutpostStoredUnits = 0;
+        for (TActorIterator<ARiftOutpostBeacon> It(GetWorld()); It; ++It)
+        {
+            if (It->bOnline)
+            {
+                ++OnlineOutposts;
+            }
+            OutpostStoredUnits += It->GetStoredUnits();
+        }
+
+        const float InventoryMass = URiftInventoryRules::GetInventoryMassKg(Player);
+        const float InventoryVolume = URiftInventoryRules::GetInventoryVolumeL(Player);
         const FString Status = FString::Printf(
-            TEXT("RIFTWORKS\nHP %.0f   LIGHT %.0f%%   SCRAP %d\nGRID %.1f kW GEN / %.1f kW LOAD / %.2f kWh"),
+            TEXT("RIFTWORKS\nHP %.0f   LIGHT %.0f%%   SCRAP %d\nPACK %.1f/%.0f kg   %.1f/%.0f L\nGRID %.1f kW GEN / %.1f kW LOAD / %.2f kWh   SIG %.1f\nOUTPOSTS %d ONLINE   %d STORED"),
             Player->Health,
             Player->FlashlightBattery,
             Player->Scrap,
+            InventoryMass,
+            URiftInventoryRules::GetMaximumMassKg(),
+            InventoryVolume,
+            URiftInventoryRules::GetMaximumVolumeL(),
             Generation,
             Consumption,
-            Stored);
+            Stored,
+            Signature,
+            OnlineOutposts,
+            OutpostStoredUnits);
         DrawText(Status, Primary, SafeMargin, SafeMargin, Font, 1.0f, false);
 
         const float CX = W * 0.5f;
