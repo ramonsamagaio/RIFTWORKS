@@ -100,7 +100,8 @@ void ARiftTemperatureField::Tick(float DeltaSeconds)
 
     if (!bEnabled || !Field)
     {
-        RestoreReleasedCryoCharacters({});
+        const TSet<TWeakObjectPtr<ACharacter>> EmptySet;
+        RestoreReleasedCryoCharacters(EmptySet);
         return;
     }
 
@@ -108,7 +109,8 @@ void ARiftTemperatureField::Tick(float DeltaSeconds)
     Field->GetOverlappingActors(Overlaps);
     if (Mode == ERiftTemperatureFieldMode::Thermal)
     {
-        RestoreReleasedCryoCharacters({});
+        const TSet<TWeakObjectPtr<ACharacter>> EmptySet;
+        RestoreReleasedCryoCharacters(EmptySet);
         ApplyThermal(DeltaSeconds, Overlaps);
     }
     else
@@ -157,6 +159,7 @@ void ARiftTemperatureField::ApplyThermal(float DeltaSeconds, const TArray<AActor
 
 void ARiftTemperatureField::ApplyCryo(float DeltaSeconds, const TArray<AActor*>& Overlaps)
 {
+    (void)DeltaSeconds;
     TSet<TWeakObjectPtr<ACharacter>> CurrentlyAffected;
 
     for (AActor* Actor : Overlaps)
@@ -168,12 +171,13 @@ void ARiftTemperatureField::ApplyCryo(float DeltaSeconds, const TArray<AActor*>&
 
         if (ACharacter* Character = Cast<ACharacter>(Actor))
         {
-            CurrentlyAffected.Add(Character);
+            const TWeakObjectPtr<ACharacter> CharacterKey(Character);
+            CurrentlyAffected.Add(CharacterKey);
             if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
             {
-                if (!CryoOriginalSpeeds.Contains(Character))
+                if (!CryoOriginalSpeeds.Contains(CharacterKey))
                 {
-                    CryoOriginalSpeeds.Add(Character, Movement->MaxWalkSpeed);
+                    CryoOriginalSpeeds.Add(CharacterKey, Movement->MaxWalkSpeed);
                 }
                 Movement->MaxWalkSpeed = FMath::Min(Movement->MaxWalkSpeed, CryoCharacterSpeed);
             }
@@ -189,8 +193,8 @@ void ARiftTemperatureField::ApplyCryo(float DeltaSeconds, const TArray<AActor*>&
             }
             const FVector Velocity = Primitive->GetPhysicsLinearVelocity();
             const float Mass = FMath::Max(1.0f, Primitive->GetMass());
-            Primitive->AddForce(-Velocity * CryoDragForce * Mass * 0.0008f * FMath::Max(DeltaSeconds, 0.001f));
-            Primitive->AddTorqueInRadians(-Primitive->GetPhysicsAngularVelocityInRadians() * CryoDragForce * 0.018f * DeltaSeconds);
+            Primitive->AddForce(-Velocity * CryoDragForce * Mass * 0.0008f);
+            Primitive->AddTorqueInRadians(-Primitive->GetPhysicsAngularVelocityInRadians() * CryoDragForce * 0.018f);
         }
     }
 
@@ -238,5 +242,6 @@ FText ARiftTemperatureField::GetInteractionText_Implementation() const
 
 void ARiftTemperatureField::Interact_Implementation(ARiftPlayerCharacter* Player)
 {
+    (void)Player;
     SetSignal(!bEnabled);
 }
