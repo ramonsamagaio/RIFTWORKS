@@ -4,6 +4,7 @@
 #include "RiftInventoryRules.h"
 #include "RiftOutpostBeacon.h"
 #include "RiftPlayerCharacter.h"
+#include "RiftProductionPlayer.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -66,9 +67,14 @@ void ARiftHUD::DrawHUD()
 
         const float InventoryMass = URiftInventoryRules::GetInventoryMassKg(Player);
         const float InventoryVolume = URiftInventoryRules::GetInventoryVolumeL(Player);
+        const ARiftProductionPlayerCharacter* ProductionPlayer = Cast<ARiftProductionPlayerCharacter>(Player);
+        const float Stamina = ProductionPlayer ? ProductionPlayer->Stamina : 100.0f;
+        const float MaxStamina = ProductionPlayer ? ProductionPlayer->MaxStamina : 100.0f;
         const FString Status = FString::Printf(
-            TEXT("RIFTWORKS\nHP %.0f   LIGHT %.0f%%   SCRAP %d\nPACK %.1f/%.0f kg   %.1f/%.0f L\nGRID %.1f kW GEN / %.1f kW LOAD / %.2f kWh   SIG %.1f\nOUTPOSTS %d ONLINE   %d STORED"),
+            TEXT("RIFTWORKS\nHP %.0f   STAM %.0f/%.0f   LIGHT %.0f%%   SCRAP %d\nPACK %.1f/%.0f kg   %.1f/%.0f L\nGRID %.1f kW GEN / %.1f kW LOAD / %.2f kWh   SIG %.1f\nOUTPOSTS %d ONLINE   %d STORED"),
             Player->Health,
+            Stamina,
+            MaxStamina,
             Player->FlashlightBattery,
             Player->Scrap,
             InventoryMass,
