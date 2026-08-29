@@ -2,8 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "RiftEngineeringJoint.h"
+#include "RiftLogicNode.h"
 #include "RiftPlayerCharacter.h"
 #include "RiftProductionPlayer.generated.h"
+
+UENUM(BlueprintType)
+enum class ERiftUtilityBuildMode : uint8
+{
+    Button,
+    ProximitySensor,
+    Timer
+};
 
 UCLASS(Blueprintable)
 class RIFTWORKSUE_API ARiftProductionPlayerCharacter : public ARiftPlayerCharacter
@@ -60,17 +69,38 @@ public:
     UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Engineering")
     TObjectPtr<ARiftEngineeringJoint> LastCreatedJoint;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Engineering|Logic")
+    ERiftUtilityBuildMode SelectedUtilityBuildMode = ERiftUtilityBuildMode::Button;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Engineering|Logic")
+    TSubclassOf<ARiftLogicNode> LogicButtonClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Engineering|Logic")
+    TSubclassOf<ARiftLogicNode> LogicSensorClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="RIFTWORKS|Engineering|Logic")
+    TSubclassOf<ARiftLogicNode> LogicTimerClass;
+
+    UPROPERTY(BlueprintReadOnly, Category="RIFTWORKS|Engineering|Logic")
+    TObjectPtr<ARiftLogicNode> LogicSelectionSource;
+
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Engineering")
     void CycleEngineeringJointMode(int32 Direction = 1);
 
     UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Engineering")
     void CancelEngineeringSelection();
 
+    UFUNCTION(BlueprintCallable, Category="RIFTWORKS|Engineering|Logic")
+    void CycleUtilityBuildMode(int32 Direction = 1);
+
     UFUNCTION(BlueprintPure, Category="RIFTWORKS|Build")
     FString GetSelectedBuildCostText() const;
 
     UFUNCTION(BlueprintPure, Category="RIFTWORKS|Build")
     bool CanAffordSelectedBuildPiece() const;
+
+    UFUNCTION(BlueprintPure, Category="RIFTWORKS|Engineering|Logic")
+    FString GetUtilityBuildCostText() const;
 
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnStaminaChanged(float NewStamina, float MaximumStamina, bool bExhausted);
@@ -80,6 +110,9 @@ public:
 
     UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
     void BP_OnEngineeringJointCreated(ARiftEngineeringJoint* Joint);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="RIFTWORKS|Blueprint Events")
+    void BP_OnLogicLinkCreated(ARiftLogicNode* Source, AActor* Receiver);
 
 protected:
     virtual void BeginPlay() override;
@@ -94,9 +127,17 @@ protected:
     void EngineeringModeNextPressed();
     void EngineeringCancelPressed();
     ARiftAssemblyPart* TraceEngineeringPart(FHitResult* OutHit = nullptr) const;
+    AActor* TraceEngineeringActor(FHitResult* OutHit = nullptr) const;
     FString EngineeringModeName() const;
     void UpdateEngineeringPrompt();
     void ProductionBuildPlacePressed();
     bool ConsumeSelectedBuildCost();
     void UpdateBuildCostPrompt();
+    void UtilityBuildNextPressed();
+    void UtilityBuildPlacePressed();
+    void LogicConnectPressed();
+    FString UtilityModeName() const;
+    TSubclassOf<ARiftLogicNode> GetSelectedUtilityClass() const;
+    bool CanAffordUtility() const;
+    bool ConsumeUtilityCost();
 };
