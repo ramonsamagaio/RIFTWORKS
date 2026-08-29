@@ -10,7 +10,22 @@ void ARiftEngineeringPlayerCharacter::SetupPlayerInputComponent(UInputComponent*
         return;
     }
 
-    PlayerInputComponent->BindAction(TEXT("UtilityBuildNext"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::UtilityBuildNextPressed);
-    PlayerInputComponent->BindAction(TEXT("UtilityBuildPlace"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::UtilityBuildPlacePressed);
-    PlayerInputComponent->BindAction(TEXT("LogicConnect"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::LogicConnectPressed);
+    PlayerInputComponent->BindAction(TEXT("UtilityBuildNext"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::UtilityBuildNextInput);
+    PlayerInputComponent->BindAction(TEXT("UtilityBuildPlace"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::UtilityBuildPlaceInput);
+    PlayerInputComponent->BindAction(TEXT("LogicConnect"), IE_Pressed, this, &ARiftEngineeringPlayerCharacter::LogicConnectInput);
+}
+
+void ARiftEngineeringPlayerCharacter::UtilityBuildNextInput()
+{
+    UtilityBuildNextPressed();
+}
+
+void ARiftEngineeringPlayerCharacter::UtilityBuildPlaceInput()
+{
+    UtilityBuildPlacePressed();
+}
+
+void ARiftEngineeringPlayerCharacter::LogicConnectInput()
+{
+    LogicConnectPressed();
 }
