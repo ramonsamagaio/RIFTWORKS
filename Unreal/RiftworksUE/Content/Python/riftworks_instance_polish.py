@@ -13,7 +13,10 @@ CHARACTER_BP_PATHS = [
     f"{rw.BP_DIR}/BP_RiftHumanoid",
 ]
 COLOSSUS_BP_PATH = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftMannequinColossus"
-ROTATOR_AUDIT_TAG = "RiftRotatorAxesAuditedV2"
+
+
+def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
+    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
 
 
 def _all_components(actor, cls):
@@ -88,18 +91,18 @@ def _normalize_name(value: str) -> str:
 
 
 def _runtime_character_assets():
-    """Use only a mesh that owns the same Unreal Skeleton as the animations.
+    # setup.py owns the canonical selection rule. Keep a local fallback only for
+    # projects opened before the latest setup module has reloaded.
+    try:
+        return rw.runtime_character_assets()
+    except Exception:
+        pass
 
-    Female Mannequin is a retarget target, not permission to force-bind its FBX
-    onto the UAL1 Skeleton asset. Until an IK Retargeter is authored, the safest
-    runtime visual is the mesh imported with the animation library itself.
-    """
     animations = rw.find_by_type(rw.ANIM_DIR, unreal.AnimSequence)
-    meshes = rw.find_by_type(rw.ANIM_DIR, unreal.SkeletalMesh)
-
+    meshes = rw.find_by_type(rw.ANIM_DIR, unreal.SkeletalMesh) + rw.find_by_type(rw.CHAR_DIR, unreal.SkeletalMesh)
     best_mesh = None
     best_skeleton = None
-    best_score = -1
+    best_score = 0
     for mesh in meshes:
         skeleton = _asset_skeleton(mesh)
         if not skeleton:
@@ -109,16 +112,6 @@ def _runtime_character_assets():
             best_mesh = mesh
             best_skeleton = skeleton
             best_score = score
-
-    if not best_mesh:
-        for mesh in rw.find_by_type(rw.CHAR_DIR, unreal.SkeletalMesh):
-            skeleton = _asset_skeleton(mesh)
-            score = sum(1 for anim in animations if _same_asset(_asset_skeleton(anim), skeleton))
-            if score > best_score and score > 0:
-                best_mesh = mesh
-                best_skeleton = skeleton
-                best_score = score
-
     compatible = [a for a in animations if _same_asset(_asset_skeleton(a), best_skeleton)] if best_skeleton else []
     return best_mesh, best_skeleton, compatible, best_score
 
@@ -133,55 +126,40 @@ def _pick_animation(animations, candidates):
     return None
 
 
-def _mesh_floor_offset(mesh, capsule_half_height=92.0) -> float:
-    try:
-        bounds = mesh.get_bounds()
-        bottom = float(bounds.origin.z - bounds.box_extent.z)
-        offset = -float(capsule_half_height) - bottom
-        if -300.0 <= offset <= 300.0:
-            return offset
-    except Exception:
-        pass
-    return -float(capsule_half_height)
-
-
-def _assign_mesh_component(component, mesh, capsule_half_height=92.0, scale=1.0):
+def _assign_mesh_component(component, mesh, capsule_half_height=92.0):
     if not component or not mesh:
         return
-    if not rw.safe_set(component, "skeletal_mesh_asset", mesh):
-        rw.safe_set(component, "skeletal_mesh", mesh)
     try:
-        component.set_relative_location(unreal.Vector(0.0, 0.0, _mesh_floor_offset(mesh, capsule_half_height)))
-        component.set_relative_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=0.0))
-        component.set_relative_scale3d(unreal.Vector(scale, scale, scale))
+        rw.set_skeletal_mesh(component, mesh, capsule_half_height)
+    except TypeError:
+        rw.set_skeletal_mesh(component, mesh)
     except Exception:
         pass
 
 
 def _sanitize_character_blueprints(mesh, animations):
-    if not mesh or not animations:
-        rw.warn("Character audit found no skeleton-native UAL1 mesh/animation pair; leaving current assets untouched")
-        return
-
+    compatible = bool(mesh and animations)
     clips = {
-        "idle_animation": _pick_animation(animations, ["Idle_Loop", "Idle"]),
-        "walk_animation": _pick_animation(animations, ["Walk_Loop", "Walking", "Walk"]),
-        "run_animation": _pick_animation(animations, ["Sprint_Loop", "Jog_Fwd_Loop", "Fast Run", "Jog"]),
-        "crouch_animation": _pick_animation(animations, ["Crouch_Fwd_Loop", "Crouch_Idle_Loop"]),
-        "pistol_idle_animation": _pick_animation(animations, ["Pistol_Idle_Loop", "Pistol Idle", "Idle_Loop"]),
-        "pistol_shoot_animation": _pick_animation(animations, ["Pistol_Shoot", "Pistol Shoot"]),
-        "hit_animation": _pick_animation(animations, ["Hit_Chest", "Hit_Head", "Hit"]),
-        "death_animation": _pick_animation(animations, ["Death01", "Death"]),
+        "idle_animation": _pick_animation(animations, ["Idle_Loop", "Idle"]) if compatible else None,
+        "walk_animation": _pick_animation(animations, ["Walk_Loop", "Walking", "Walk"]) if compatible else None,
+        "run_animation": _pick_animation(animations, ["Sprint_Loop", "Jog_Fwd_Loop", "Fast Run", "Jog"]) if compatible else None,
+        "crouch_animation": _pick_animation(animations, ["Crouch_Fwd_Loop", "Crouch_Idle_Loop"]) if compatible else None,
+        "pistol_idle_animation": _pick_animation(animations, ["Pistol_Idle_Loop", "Pistol Idle", "Idle_Loop"]) if compatible else None,
+        "pistol_shoot_animation": _pick_animation(animations, ["Pistol_Shoot", "Pistol Shoot"]) if compatible else None,
+        "hit_animation": _pick_animation(animations, ["Hit_Chest", "Hit_Head", "Hit"]) if compatible else None,
+        "death_animation": _pick_animation(animations, ["Death01", "Death"]) if compatible else None,
     }
 
     for path in CHARACTER_BP_PATHS:
         cdo = rw.blueprint_cdo(path)
         if not cdo:
             continue
-        try:
-            _assign_mesh_component(cdo.get_editor_property("mesh"), mesh, 92.0, 1.0)
-        except Exception:
-            pass
+        if mesh:
+            try:
+                _assign_mesh_component(cdo.get_editor_property("mesh"), mesh, 92.0)
+            except Exception:
+                pass
+        rw.safe_set(cdo, "b_use_single_node_animation_fallback", compatible)
         for prop, clip in clips.items():
             if clip:
                 rw.safe_set(cdo, prop, clip)
@@ -191,7 +169,7 @@ def _sanitize_character_blueprints(mesh, animations):
             pass
 
     colossus = rw.blueprint_cdo(COLOSSUS_BP_PATH)
-    if colossus:
+    if colossus and mesh:
         try:
             comp = colossus.get_editor_property("mesh")
             if not rw.safe_set(comp, "skeletal_mesh_asset", mesh):
@@ -208,29 +186,56 @@ def _sanitize_character_blueprints(mesh, animations):
             pass
 
 
-def _desired_floor_z(y: float):
-    # Flat staging bands only. Sloped stair corridors remain authored geometry.
+def _inside(x, y, center_x, center_y, width, depth) -> bool:
+    return abs(x - center_x) <= width * 0.5 and abs(y - center_y) <= depth * 0.5
+
+
+def _surface_floor_z(x: float, y: float) -> float:
+    # Curated vertical-slice surfaces. Use the actual top faces of the generated
+    # geometry instead of a single guessed Z for the entire surface district.
+    if _inside(x, y, 1550.0, 950.0, 1900.0, 1600.0):
+        return 24.0  # Workshop floor
+    if _inside(x, y, -1480.0, 1250.0, 1380.0, 1040.0):
+        return 24.0  # Corner store floor
+    if _inside(x, y, -1700.0, -1450.0, 1850.0, 1420.0):
+        return 24.0  # Motel floor
+    if _inside(x, y, 1650.0, -1750.0, 2000.0, 1500.0):
+        return 16.0  # Substation pad
+    if _inside(x, y, -620.0, -2190.0, 430.0, 390.0):
+        return 20.0  # Checkpoint booth floor
+    if abs(x) <= 460.0 and -3950.0 <= y <= 5050.0:
+        return 8.0   # Main road
+    if 465.0 <= abs(x) <= 675.0 and -3950.0 <= y <= 5050.0:
+        return 24.0  # Sidewalk
+    return 0.0       # Ground slabs
+
+
+def _desired_floor_z(x: float, y: float):
+    # Sloped stair bands are deliberately excluded because a single Z would be
+    # less correct than their authored step geometry.
     if y > -4200.0:
-        return 24.0
-    if -8350.0 < y <= -6900.0:
-        return -901.0
-    if y <= -9300.0:
-        return -1320.0
+        return _surface_floor_z(x, y)
+    if -8150.0 <= y <= -5650.0:
+        return -908.0   # Station hall floor: center -925, thickness 34
+    if -8320.0 <= y < -8150.0:
+        return -906.0   # Deep landing top
+    if y <= -9400.0:
+        return -1317.5  # Breach chamber floor top
     return None
 
 
 def _ground_staged_actor(actor) -> bool:
     try:
         location = actor.get_actor_location()
-        floor_z = _desired_floor_z(float(location.y))
+        floor_z = _desired_floor_z(float(location.x), float(location.y))
         if floor_z is None:
             return False
-        # Colliding bounds intentionally exclude light attenuation volumes and
-        # other visual-only components that previously polluted grounding.
+        # only_colliding_components=True prevents light attenuation radii and
+        # other visual helpers from becoming part of the actor's "feet".
         origin, extent = actor.get_actor_bounds(True)
         bottom = float(origin.z - extent.z)
-        delta = floor_z - bottom
-        if 2.0 < abs(delta) <= 360.0:
+        delta = float(floor_z) - bottom
+        if 1.5 < abs(delta) <= 420.0:
             actor.set_actor_location(unreal.Vector(location.x, location.y, location.z + delta), False, False)
             return True
     except Exception:
@@ -248,108 +253,65 @@ def _is_grounded_gameplay_actor(actor, label: str) -> bool:
         "rifthumanoid", "riftsalvage", "riftpowerdevice", "riftbasebeacon",
         "riftoutpost", "riftcargocart", "riftconveyor", "riftfreightlift",
         "riftrecoverywinch", "riftfabricator", "riftlogicnode", "riftcrawler",
-        "riftbreachgolem",
+        "riftbreachgolem", "rifttemperaturefield", "riftphasefield",
     )
     label_tokens = (
         "humanoid", "salvage", "cargo", "generator", "battery", "floodlight",
-        "starterbase", "outpost", "fabricator", "crawler",
+        "starterbase", "outpost", "fabricator", "crawler", "winch", "recoveryrig",
     )
     return any(token in cls for token in class_tokens) or any(token in label_l for token in label_tokens)
 
 
-def _has_audit_tag(actor) -> bool:
+def _sanitize_orientation(actor, label: str) -> bool:
     try:
-        return actor.actor_has_tag(ROTATOR_AUDIT_TAG)
-    except Exception:
-        try:
-            return ROTATOR_AUDIT_TAG in [str(tag) for tag in actor.get_editor_property("tags")]
-        except Exception:
-            return False
-
-
-def _add_audit_tag(actor):
-    try:
-        tags = list(actor.get_editor_property("tags"))
-        if ROTATOR_AUDIT_TAG not in [str(tag) for tag in tags]:
-            tags.append(ROTATOR_AUDIT_TAG)
-            actor.set_editor_property("tags", tags)
-    except Exception:
-        pass
-
-
-def _migrate_legacy_python_rotator(actor, label: str) -> bool:
-    """Repair Python Rotator positional calls authored with C++ argument order.
-
-    FRotator C++ constructor: (Pitch, Yaw, Roll)
-    unreal.Rotator Python constructor: (Roll, Pitch, Yaw)
-
-    Old scripts passed C++ order positionally, so the stored properties are:
-      Roll=old Pitch, Pitch=old Yaw, Yaw=old Roll.
-    Convert them back once, then tag the actor so repeated editor opens are safe.
-    """
-    if not label.startswith("RIFT_") or _has_audit_tag(actor):
-        return False
-    try:
-        old = actor.get_actor_rotation()
-        changed = abs(old.roll) > 0.01 or abs(old.pitch) > 0.01 or abs(old.yaw) > 0.01
-        if changed:
-            actor.set_actor_rotation(
-                unreal.Rotator(roll=old.yaw, pitch=old.roll, yaw=old.pitch),
-                False,
-            )
-        _add_audit_tag(actor)
-        return changed
+        before = actor.get_actor_rotation()
     except Exception:
         return False
 
-
-def _sanitize_orientation(actor, label: str):
-    try:
-        rotation = actor.get_actor_rotation()
-    except Exception:
-        return
-
+    # Grounded gameplay actors are intended to stand upright. Preserve heading,
+    # never preserve accidental pitch/roll inherited from old Python staging.
     if _is_grounded_gameplay_actor(actor, label):
         try:
-            actor.set_actor_rotation(
-                unreal.Rotator(roll=0.0, pitch=0.0, yaw=rotation.yaw),
-                False,
-            )
-            rotation = actor.get_actor_rotation()
+            actor.set_actor_rotation(_rotator(yaw=before.yaw), False)
         except Exception:
             pass
 
-    # Cylinder axis is Z. Wheels/long pipes need a 90-degree roll to make the
-    # cylinder axis horizontal; preserve the actor's corrected world yaw.
+    # Engine BasicShapes Cylinder is Z-axis aligned. These known generated props
+    # are intentionally horizontal, so normalize their roll explicitly.
     if "_Wheel_" in label or "DumpsterWheel" in label:
         try:
-            actor.set_actor_rotation(
-                unreal.Rotator(roll=90.0, pitch=0.0, yaw=rotation.yaw),
-                False,
-            )
+            current = actor.get_actor_rotation()
+            actor.set_actor_rotation(_rotator(yaw=current.yaw, roll=90.0), False)
         except Exception:
             pass
     elif "UG_PipeRed" in label:
         try:
-            actor.set_actor_rotation(
-                unreal.Rotator(roll=90.0, pitch=0.0, yaw=rotation.yaw),
-                False,
-            )
+            current = actor.get_actor_rotation()
+            actor.set_actor_rotation(_rotator(yaw=current.yaw, roll=90.0), False)
         except Exception:
             pass
+
+    try:
+        after = actor.get_actor_rotation()
+        return (
+            abs(after.pitch - before.pitch) > 0.1
+            or abs(after.roll - before.roll) > 0.1
+            or abs(after.yaw - before.yaw) > 0.1
+        )
+    except Exception:
+        return False
 
 
 def _sanitize_level_instances(mesh):
     if not rw.asset_library.does_asset_exist(rw.BOOTSTRAP_MAP):
-        return (0, 0, 0)
+        return 0, 0
+
     level = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     level.load_level(rw.BOOTSTRAP_MAP)
-
+    mats = rv.ensure_material_library()
     grounded = 0
     reoriented = 0
-    axis_migrated = 0
-    mats = rv.ensure_material_library()
 
     for actor in list(actors.get_all_level_actors()):
         try:
@@ -357,8 +319,10 @@ def _sanitize_level_instances(mesh):
         except Exception:
             label = ""
 
-        axis_migrated += 1 if _migrate_legacy_python_rotator(actor, label) else 0
-
+        # No blanket "legacy axis migration" here. Current art/dressing/weather
+        # passes rebuild their own actors every editor open. Guessing intent from
+        # an arbitrary old Euler rotation would risk corrupting freshly-correct
+        # actors a second time.
         if label == "RIFT_AUTO_WalkerColossus":
             if mesh:
                 for comp in _all_components(actor, unreal.SkeletalMeshComponent):
@@ -369,7 +333,7 @@ def _sanitize_level_instances(mesh):
         elif label.startswith("RIFT_AUTO_Humanoid"):
             if mesh:
                 for comp in _all_components(actor, unreal.SkeletalMeshComponent):
-                    _assign_mesh_component(comp, mesh, 92.0, 1.0)
+                    _assign_mesh_component(comp, mesh, 92.0)
             _quiet_lights(actor)
         elif label.startswith("RIFT_EXTRA_BreachGolem"):
             _set_materials(actor, mats.get("breach_dark"), mats.get("assembly_motor"))
@@ -384,39 +348,26 @@ def _sanitize_level_instances(mesh):
             _set_materials(actor, mats.get("metal"))
             _quiet_lights(actor)
 
-        before = None
-        try:
-            before = actor.get_actor_rotation()
-        except Exception:
-            pass
-        _sanitize_orientation(actor, label)
-        if before is not None:
-            try:
-                after = actor.get_actor_rotation()
-                if abs(after.pitch - before.pitch) > 0.1 or abs(after.roll - before.roll) > 0.1 or abs(after.yaw - before.yaw) > 0.1:
-                    reoriented += 1
-            except Exception:
-                pass
-
+        reoriented += 1 if _sanitize_orientation(actor, label) else 0
         if _is_grounded_gameplay_actor(actor, label) and label != "RIFT_AUTO_WalkerColossus":
             grounded += 1 if _ground_staged_actor(actor) else 0
 
     level.save_current_level()
-    return grounded, reoriented, axis_migrated
+    return grounded, reoriented
 
 
 def apply_all():
     mesh, skeleton, animations, score = _runtime_character_assets()
     _sanitize_character_blueprints(mesh, animations)
-    grounded, reoriented, axis_migrated = _sanitize_level_instances(mesh)
+    grounded, reoriented = _sanitize_level_instances(mesh)
 
     mesh_name = mesh.get_path_name() if mesh else "NONE"
     skeleton_name = skeleton.get_path_name() if skeleton else "NONE"
     rw.log(
         "FINAL AUDIT complete | "
         f"runtime_mesh={mesh_name} | skeleton={skeleton_name} | native_clips={len(animations)} | "
-        f"compatibility_score={score} | rotator_axes_migrated={axis_migrated} | "
-        f"grounded={grounded} | reoriented={reoriented}"
+        f"compatibility_score={score} | grounded={grounded} | reoriented={reoriented} | "
+        "legacy_axis_guessing=disabled"
     )
 
 
