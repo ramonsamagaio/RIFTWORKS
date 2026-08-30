@@ -8,6 +8,10 @@ import riftworks_vertical_slice as vs
 PREFIX = "RIFT_WEATHER_"
 
 
+def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
+    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+
+
 def _tag(actor, name):
     if actor:
         try:
@@ -18,11 +22,11 @@ def _tag(actor, name):
 
 
 def _cube(actors, name, loc, size, mat, yaw=0.0):
-    return _tag(vs._spawn_cube(actors, name, loc, size, mat, unreal.Rotator(0, yaw, 0)), name)
+    return _tag(vs._spawn_cube(actors, name, loc, size, mat, _rotator(yaw=yaw)), name)
 
 
 def _cone(actors, name, loc, diameter, height, mat, rot=None):
-    return _tag(vs._spawn_cone(actors, name, loc, diameter, height, mat, rot or unreal.Rotator()), name)
+    return _tag(vs._spawn_cone(actors, name, loc, diameter, height, mat, rot or _rotator()), name)
 
 
 def _materials():
@@ -91,7 +95,8 @@ def _breach_fragments(actors, mats):
         (-960, -10700, -1300, 65, 145, 28), (940, -10800, -1295, 110, 260, -22),
     ]
     for i, (x, y, z, d, h, pitch) in enumerate(fragments):
-        _cone(actors, f"BreachFragment_{i}", (x, y, z + h * 0.5), d, h, mats["breach"], unreal.Rotator(pitch, i * 41, 0))
+        _cone(actors, f"BreachFragment_{i}", (x, y, z + h * 0.5), d, h, mats["breach"],
+              _rotator(pitch=pitch, yaw=i * 41))
 
 
 def apply_all():
