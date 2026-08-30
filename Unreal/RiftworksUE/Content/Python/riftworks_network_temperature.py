@@ -7,6 +7,10 @@ import riftworks_visuals as rv
 PREFIX = "RIFT_GDD_NETWORK_"
 
 
+def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
+    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+
+
 def _material(component, material):
     if component and material:
         try:
@@ -16,7 +20,7 @@ def _material(component, material):
 
 
 def _spawn(actors, cls, label, location, rotation=(0.0, 0.0, 0.0)):
-    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), unreal.Rotator(*rotation))
+    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotator(*rotation))
     if actor:
         try:
             actor.set_actor_label(PREFIX + label)
@@ -30,7 +34,6 @@ def _ensure_blueprints(materials):
     thermal_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftThermalField"
     cryo_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftCryoField"
     phase_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftPhaseField"
-
     rw.create_blueprint("BP_RiftOutpost", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftOutpostBeacon")
     rw.create_blueprint("BP_RiftThermalField", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftTemperatureField")
     rw.create_blueprint("BP_RiftCryoField", rw.GAMEPLAY_BP_DIR, "/Script/RiftworksUE.RiftTemperatureField")
@@ -77,13 +80,12 @@ def _ensure_blueprints(materials):
             pass
         rw.safe_set(phase, "radius", 620.0)
         rw.asset_library.save_asset(phase_path, only_if_is_dirty=False)
-
     return outpost_path, thermal_path, cryo_path, phase_path
 
 
 def _spawn_fragile_barricade(actors, materials, label, location, rotation=(0.0, 0.0, 0.0)):
     try:
-        actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, unreal.Vector(*location), unreal.Rotator(*rotation))
+        actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, unreal.Vector(*location), _rotator(*rotation))
         if not actor:
             return None
         actor.set_actor_label(PREFIX + label)
@@ -105,7 +107,6 @@ def _spawn_fragile_barricade(actors, materials, label, location, rotation=(0.0, 
 def apply_all():
     if not rw.asset_library.does_asset_exist(rw.BOOTSTRAP_MAP):
         return
-
     materials = rv.ensure_material_library()
     outpost_path, thermal_path, cryo_path, phase_path = _ensure_blueprints(materials)
     outpost_cls = rw.blueprint_class(outpost_path)
@@ -119,7 +120,6 @@ def apply_all():
     level = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     level.load_level(rw.BOOTSTRAP_MAP)
-
     for actor in list(actors.get_all_level_actors()):
         try:
             if actor.get_actor_label().startswith(PREFIX):
@@ -132,7 +132,6 @@ def apply_all():
         rw.safe_set(station, "outpost_name", "Metro Recovery Outpost")
         rw.safe_set(station, "storage_capacity_units", 42)
         rw.safe_set(station, "access_radius", 1050.0)
-
     hunt = _spawn(actors, outpost_cls, "HuntingOutpost", (3080, -3220, 72), (0.0, -40.0, 0.0))
     if hunt:
         rw.safe_set(hunt, "outpost_name", "Walker Observation Post")
@@ -144,26 +143,20 @@ def apply_all():
         rw.safe_set(thermal, "radius", 760.0)
         rw.safe_set(thermal, "thermal_damage_per_second", 8.0)
         rw.safe_set(thermal, "thermal_lift_force", 135000.0)
-
     cryo = _spawn(actors, cryo_cls, "CryoField", (-1420, -10450, -1160))
     if cryo:
         rw.safe_set(cryo, "radius", 840.0)
         rw.safe_set(cryo, "cryo_drag_force", 112000.0)
         rw.safe_set(cryo, "cryo_character_speed", 145.0)
-
     phase = _spawn(actors, phase_cls, "PhaseField", (120, -11150, -1240))
     if phase:
         rw.safe_set(phase, "radius", 680.0)
         rw.safe_set(phase, "b_enabled", True)
 
     for index, offset in enumerate((-600, -300, 0, 300, 600)):
-        _spawn_fragile_barricade(
-            actors,
-            materials,
-            f"WalkerBarricade{index:02d}",
-            (5000 + offset, -4700 + index * 95, 90),
-            (0.0, 15.0 + index * 8.0, 0.0),
-        )
+        _spawn_fragile_barricade(actors, materials, f"WalkerBarricade{index:02d}",
+                                 (5000 + offset, -4700 + index * 95, 90),
+                                 (0.0, 15.0 + index * 8.0, 0.0))
 
     level.save_current_level()
     try:
