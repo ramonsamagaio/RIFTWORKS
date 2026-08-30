@@ -12,6 +12,12 @@
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectGlobals.h"
 
+namespace
+{
+    constexpr float CrawlerVisualZOffset = -37.0f;
+    constexpr float CrawlerBodyBaseZ = 15.0f + CrawlerVisualZOffset;
+}
+
 ARiftCrawlerCreature::ARiftCrawlerCreature()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -24,8 +30,12 @@ ARiftCrawlerCreature::ARiftCrawlerCreature()
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 420.0f, 0.0f);
 
-    Body = MakePart(TEXT("CrawlerBody"), FVector(0.0f, 0.0f, 15.0f), FVector(0.95f, 0.62f, 0.34f));
-    Head = MakePart(TEXT("CrawlerHead"), FVector(68.0f, 0.0f, 9.0f), FVector(0.48f, 0.50f, 0.30f), FRotator(0.0f, 7.0f, 0.0f));
+    // ACharacter is centered on its capsule. The old procedural parts were
+    // authored around Z=0 as if that were ground level, leaving the visible
+    // legs ~37 cm above a correctly-grounded capsule. Shift the complete visual
+    // body down so the feet and collision bottom agree.
+    Body = MakePart(TEXT("CrawlerBody"), FVector(0.0f, 0.0f, CrawlerBodyBaseZ), FVector(0.95f, 0.62f, 0.34f));
+    Head = MakePart(TEXT("CrawlerHead"), FVector(68.0f, 0.0f, 9.0f + CrawlerVisualZOffset), FVector(0.48f, 0.50f, 0.30f), FRotator(0.0f, 7.0f, 0.0f));
 
     const float Side[6] = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f};
     const float Along[6] = {-54.0f, 0.0f, 52.0f, -54.0f, 0.0f, 52.0f};
@@ -34,7 +44,7 @@ ARiftCrawlerCreature::ARiftCrawlerCreature()
         const float Y = Side[Index] * 52.0f;
         UStaticMeshComponent* Leg = MakePart(
             *FString::Printf(TEXT("CrawlerLeg_%02d"), Index),
-            FVector(Along[Index], Y, -12.0f),
+            FVector(Along[Index], Y, -12.0f + CrawlerVisualZOffset),
             FVector(0.13f, 0.48f, 0.12f),
             FRotator(0.0f, Side[Index] < 0.0f ? -18.0f : 18.0f, Side[Index] * 12.0f));
         Legs.Add(Leg);
@@ -150,7 +160,7 @@ void ARiftCrawlerCreature::UpdateProceduralGait(float DeltaSeconds)
     }
     if (Body)
     {
-        Body->SetRelativeLocation(FVector(0.0f, 0.0f, 15.0f + FMath::Sin(GaitPhase * 2.0f) * 2.5f));
+        Body->SetRelativeLocation(FVector(0.0f, 0.0f, CrawlerBodyBaseZ + FMath::Sin(GaitPhase * 2.0f) * 2.5f));
     }
 }
 
