@@ -92,14 +92,16 @@ def _normalize_name(value: str) -> str:
 
 def _runtime_character_assets():
     # setup.py owns the canonical selection rule. Keep a local fallback only for
-    # projects opened before the latest setup module has reloaded.
+    # projects opened before the latest setup module has reloaded. Even here,
+    # runtime meshes must come from the animation-library namespace, never from
+    # Characters/RetargetTargets or a legacy force-bound mannequin.
     try:
         return rw.runtime_character_assets()
     except Exception:
         pass
 
     animations = rw.find_by_type(rw.ANIM_DIR, unreal.AnimSequence)
-    meshes = rw.find_by_type(rw.ANIM_DIR, unreal.SkeletalMesh) + rw.find_by_type(rw.CHAR_DIR, unreal.SkeletalMesh)
+    meshes = rw.find_by_type(rw.ANIM_DIR, unreal.SkeletalMesh)
     best_mesh = None
     best_skeleton = None
     best_score = 0
@@ -210,17 +212,56 @@ def _surface_floor_z(x: float, y: float) -> float:
     return 0.0       # Ground slabs
 
 
+def _step_candidates(y: float, y0: float, run: float, count: int, top0: float, drop: float, half_depth: float):
+    candidates = []
+    for index in range(count):
+        center_y = y0 - index * run
+        if abs(y - center_y) <= half_depth:
+            candidates.append(top0 - index * drop)
+    return candidates
+
+
 def _desired_floor_z(x: float, y: float):
-    # Sloped stair bands are deliberately excluded because a single Z would be
-    # less correct than their authored step geometry.
-    if y > -4200.0:
+    if y > -3940.0:
         return _surface_floor_z(x, y)
+
+    # The accessibility pass is deterministic. Mirror the exact authored top
+    # faces here and choose the highest colliding surface at overlaps, which is
+    # what a Character capsule actually stands on.
+    candidates = []
+
+    # Surface entry landing: center (0,-4120,-2), size (760,360,22).
+    if -4300.0 <= y <= -3940.0:
+        candidates.append(9.0)
+
+    # 26 surface steps: y=-4300-i*82, z=-12-i*35, depth 94, height 22.
+    candidates.extend(_step_candidates(y, -4300.0, 82.0, 26, -1.0, 35.0, 47.0))
+
+    # Transition corridor to the station: center y=-6625, depth 710, z=-913, h=24.
+    if -6980.0 <= y <= -6270.0:
+        candidates.append(-901.0)
+
+    # Maintenance/station hall from the curated vertical slice.
     if -8150.0 <= y <= -5650.0:
-        return -908.0   # Station hall floor: center -925, thickness 34
-    if -8320.0 <= y < -8150.0:
-        return -906.0   # Deep landing top
-    if y <= -9400.0:
-        return -1317.5  # Breach chamber floor top
+        candidates.append(-908.0)
+
+    # Deep landing: center y=-8180, depth 620, z=-918, h=24.
+    if -8490.0 <= y <= -7870.0:
+        candidates.append(-906.0)
+
+    # 12 deep steps: y=-8420-i*78, z=-940-i*34, depth 90, height 22.
+    candidates.extend(_step_candidates(y, -8420.0, 78.0, 12, -929.0, 34.0, 45.0))
+
+    # Deep corridor: last step y=-9278 to chamber y=-9900, generated depth 862.
+    if -10020.0 <= y <= -9158.0:
+        candidates.append(-1320.0)
+
+    # Breach chamber floor: center y=-9900, depth 2300, z=-1340, h=45.
+    if -11050.0 <= y <= -8750.0:
+        candidates.append(-1317.5)
+
+    if candidates:
+        return max(candidates)
     return None
 
 
@@ -367,7 +408,7 @@ def apply_all():
         "FINAL AUDIT complete | "
         f"runtime_mesh={mesh_name} | skeleton={skeleton_name} | native_clips={len(animations)} | "
         f"compatibility_score={score} | grounded={grounded} | reoriented={reoriented} | "
-        "legacy_axis_guessing=disabled"
+        "stair_grounding=exact | legacy_axis_guessing=disabled"
     )
 
 
