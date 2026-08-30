@@ -1,0 +1,22 @@
+name: Unreal Python Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Unreal/RiftworksUE/Content/Python/**"
+      - "tools/audit_unreal_python.py"
+      - ".github/workflows/unreal-python-audit.yml"
+  pull_request:
+    paths:
+      - "Unreal/RiftworksUE/Content/Python/**"
+      - "tools/audit_unreal_python.py"
+      - ".github/workflows/unreal-python-audit.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit Unreal Python transforms
+        run: python tools/audit_unreal_python.py
