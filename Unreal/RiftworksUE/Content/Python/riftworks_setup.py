@@ -17,6 +17,7 @@ SOURCE_MODELS = os.path.join(REPO_ROOT, "assets", "models", "Female Mannequin")
 
 ROOT = "/Game/Riftworks"
 CHAR_DIR = f"{ROOT}/Characters"
+RETARGET_DIR = f"{CHAR_DIR}/RetargetTargets"
 ANIM_DIR = f"{ROOT}/Animations"
 EXTRA_ANIM_DIR = f"{ANIM_DIR}/Extras"
 BP_DIR = f"{ROOT}/Blueprints"
@@ -39,11 +40,7 @@ def warn(message: str) -> None:
 
 
 def rotator(pitch=0.0, yaw=0.0, roll=0.0):
-    """Project-wide Unreal Python rotation convention.
-
-    Python's positional Rotator order is easy to confuse with C++ FRotator, so
-    RIFTWORKS always names the fields explicitly.
-    """
+    """Project-wide Unreal Python rotation convention."""
     return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
 
 
@@ -58,7 +55,7 @@ def safe_set(obj, prop: str, value) -> bool:
 
 
 def ensure_dirs() -> None:
-    for path in [ROOT, CHAR_DIR, ANIM_DIR, EXTRA_ANIM_DIR, BP_DIR, SYSTEM_BP_DIR, GAMEPLAY_BP_DIR, MAT_DIR, MAP_DIR]:
+    for path in [ROOT, CHAR_DIR, RETARGET_DIR, ANIM_DIR, EXTRA_ANIM_DIR, BP_DIR, SYSTEM_BP_DIR, GAMEPLAY_BP_DIR, MAT_DIR, MAP_DIR]:
         if not asset_library.does_directory_exist(path):
             asset_library.make_directory(path)
 
@@ -196,29 +193,30 @@ def import_fbx(filename: str, destination: str, options) -> list[str]:
     return list(task.imported_object_paths or [])
 
 
-def import_mannequin(shared_skeleton=None):
-    """Import Female Mannequin as its own rig.
+def import_mannequin(_animation_skeleton=None):
+    """Import Female Mannequin into a dedicated retarget-target namespace.
 
-    Matching bone names are not permission to bind a mesh to a foreign Skeleton.
-    The mannequin is retained as a retarget target until an IK Retargeter asset is
-    authored. Runtime characters are selected independently by Skeleton identity.
+    Older project content may contain a Female Mannequin that was incorrectly
+    imported directly onto the UAL1 Skeleton. Never reuse it implicitly. A clean
+    target in RetargetTargets owns its own Skeleton and can later be driven by a
+    real IK Retargeter.
     """
-    existing = find_by_type(CHAR_DIR, unreal.SkeletalMesh)
+    existing = find_by_type(RETARGET_DIR, unreal.SkeletalMesh)
     if existing:
         return existing[0], _asset_skeleton(existing[0])
 
     mannequin_fbx = os.path.join(SOURCE_MODELS, "Unity", "Mannequin_F.fbx")
     if os.path.isfile(mannequin_fbx):
-        log("Importing Female Mannequin with its own Skeleton for later retargeting")
-        import_fbx(mannequin_fbx, CHAR_DIR, make_fbx_ui(None, True, False))
+        log("Importing Female Mannequin into RetargetTargets with its own Skeleton")
+        import_fbx(mannequin_fbx, RETARGET_DIR, make_fbx_ui(None, True, False))
     else:
         mannequin_glb = os.path.join(SOURCE_MODELS, "Unreal-Godot", "Mannequin_F.glb")
-        log("FBX not found; importing Female Mannequin GLB with its own rig")
-        import_default(mannequin_glb, CHAR_DIR)
+        log("FBX not found; importing Female Mannequin GLB into RetargetTargets")
+        import_default(mannequin_glb, RETARGET_DIR)
 
-    meshes = find_by_type(CHAR_DIR, unreal.SkeletalMesh)
+    meshes = find_by_type(RETARGET_DIR, unreal.SkeletalMesh)
     if not meshes:
-        warn("Female mannequin import produced no SkeletalMesh.")
+        warn("Female mannequin retarget import produced no SkeletalMesh.")
         return None, None
     mesh = meshes[0]
     return mesh, _asset_skeleton(mesh)
@@ -239,8 +237,14 @@ def import_extra_fbx_animations(skeleton) -> None:
 
 
 def runtime_character_assets():
+    """Return only a mesh native to the animation-library namespace.
+
+    A Character/RetargetTargets mesh is never accepted merely because it points
+    at the same Skeleton object. This prevents old force-bound mannequin imports
+    from masquerading as a valid retarget.
+    """
     animations = find_by_type(ANIM_DIR, unreal.AnimSequence)
-    meshes = find_by_type(ANIM_DIR, unreal.SkeletalMesh) + find_by_type(CHAR_DIR, unreal.SkeletalMesh)
+    meshes = find_by_type(ANIM_DIR, unreal.SkeletalMesh)
     best_mesh = None
     best_skeleton = None
     best_score = 0
@@ -373,6 +377,7 @@ def configure_character_blueprints(runtime_mesh, compatible_animations) -> tuple
                             ("crouch_animation", crouch), ("pistol_shoot_animation", pistol_shoot)):
             if value:
                 safe_set(player_cdo, prop, value)
+        safe_set(player_cdo, "b_use_single_node_animation_fallback", bool(runtime_mesh and compatible_animations))
         safe_set(player_cdo, "scrap", 24)
         cookie = create_light_function_material()
         try:
@@ -615,16 +620,16 @@ def setup_all(force_level_refresh: bool = True) -> None:
     ensure_dirs()
 
     animation_skeleton = import_ual1()
-    female_mesh, female_skeleton = import_mannequin(None)
-    import_extra_fbx_animations(animation_skeleton or female_skeleton)
+    female_mesh, female_skeleton = import_mannequin(animation_skeleton)
+    import_extra_fbx_animations(animation_skeleton)
 
     runtime_mesh, runtime_skeleton, compatible_animations, score = runtime_character_assets()
     if runtime_mesh and runtime_skeleton and score > 0:
-        log(f"Runtime character pair: {runtime_mesh.get_path_name()} | {runtime_skeleton.get_path_name()} | native clips={score}")
+        log(f"Runtime animation-library pair: {runtime_mesh.get_path_name()} | {runtime_skeleton.get_path_name()} | native clips={score}")
     else:
-        warn("No SkeletalMesh shares a Skeleton with imported animations. Runtime animation fallback will stay disabled until retargeting is authored.")
+        warn("UAL1 exposes no safe SkeletalMesh/animation pair. Animation fallback is disabled rather than force-binding a retarget target.")
     if female_mesh:
-        log(f"Female Mannequin retained as retarget target: {female_mesh.get_path_name()}")
+        log(f"Female Mannequin isolated retarget target: {female_mesh.get_path_name()}")
 
     player_class, npc_class, gm_class, world_class = configure_character_blueprints(runtime_mesh, compatible_animations)
     gameplay_paths = create_gameplay_blueprints()
@@ -635,7 +640,7 @@ def setup_all(force_level_refresh: bool = True) -> None:
         asset_library.save_directory(ROOT, only_if_is_dirty=False, recursive=True)
     except Exception:
         pass
-    log("SETUP COMPLETE. Runtime characters use Skeleton-native animation assets only; Female Mannequin remains a retarget target.")
+    log("SETUP COMPLETE. Runtime animation is UAL1-native only; Female Mannequin is isolated for real engine retargeting.")
 
 
 if __name__ == "__main__":
