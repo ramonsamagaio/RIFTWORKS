@@ -7,6 +7,10 @@ import riftworks_visuals as rv
 PREFIX = "RIFT_GDD_SALVAGE_"
 
 
+def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
+    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+
+
 def _set_material(component, material):
     if component and material:
         try:
@@ -54,11 +58,8 @@ def _ensure_blueprints(materials):
 
 
 def _spawn(actors, cls, label, location, rotation=None):
-    actor = actors.spawn_actor_from_class(
-        cls,
-        unreal.Vector(*location),
-        unreal.Rotator(*(rotation or (0.0, 0.0, 0.0))),
-    )
+    pitch, yaw, roll = rotation or (0.0, 0.0, 0.0)
+    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotator(pitch, yaw, roll))
     if actor:
         try:
             actor.set_actor_label(PREFIX + label)
@@ -67,23 +68,8 @@ def _spawn(actors, cls, label, location, rotation=None):
     return actor
 
 
-def _spawn_tiered(
-    actors,
-    cls,
-    label,
-    location,
-    item_id,
-    display_name,
-    tier,
-    *,
-    amount=1,
-    heavy=False,
-    mass=2.0,
-    dismantle_scrap=2,
-    dismantle_component=None,
-    dismantle_amount=0,
-    dismantleable=True,
-):
+def _spawn_tiered(actors, cls, label, location, item_id, display_name, tier, *, amount=1, heavy=False, mass=2.0,
+                   dismantle_scrap=2, dismantle_component=None, dismantle_amount=0, dismantleable=True):
     actor = _spawn(actors, cls, label, location)
     if not actor:
         return None
@@ -107,88 +93,31 @@ def _spawn_tiered(
 
 
 def _spawn_tool(actors, cls, label, location, item_id, display_name, required_tier):
-    return _spawn_tiered(
-        actors,
-        cls,
-        label,
-        location,
-        item_id,
-        display_name,
-        required_tier,
-        heavy=False,
-        mass=1.5,
-        dismantle_scrap=0,
-        dismantleable=False,
-    )
+    return _spawn_tiered(actors, cls, label, location, item_id, display_name, required_tier,
+                         heavy=False, mass=1.5, dismantle_scrap=0, dismantleable=False)
 
 
 def _stage_salvage_progression(actors, tiered_cls):
-    _spawn_tool(
-        actors, tiered_cls, "ToolTier2", (1325, 1040, 112),
-        "recovery_tool_t2", "Pry + Cutting Recovery Kit", 1,
-    )
-
-    _spawn_tiered(
-        actors, tiered_cls, "AlternatorT2", (1940, 1050, 95),
-        "alternator", "Vehicle Alternator", 2,
-        heavy=True, mass=19.0, dismantle_scrap=4,
-        dismantle_component="copper_coil", dismantle_amount=1,
-    )
-    _spawn_tiered(
-        actors, tiered_cls, "CompressorT2", (2220, 1190, 108),
-        "compressor", "Workshop Compressor", 2,
-        heavy=True, mass=34.0, dismantle_scrap=6,
-        dismantle_component="motor", dismantle_amount=1,
-    )
-
-    _spawn_tool(
-        actors, tiered_cls, "ToolTier3", (-300, -7440, -780),
-        "recovery_tool_t3", "Powered Recovery Toolset", 2,
-    )
-    _spawn_tiered(
-        actors, tiered_cls, "LiftMotorT3", (1160, -7870, -790),
-        "industrial_motor", "Metro Lift Drive", 3,
-        heavy=True, mass=92.0, dismantle_scrap=14,
-        dismantle_component="motor", dismantle_amount=2,
-    )
-    _spawn_tiered(
-        actors, tiered_cls, "PumpAssemblyT3", (-1120, -8030, -790),
-        "industrial_pump", "Flood-Control Pump Assembly", 3,
-        heavy=True, mass=118.0, dismantle_scrap=16,
-        dismantle_component="copper_coil", dismantle_amount=2,
-    )
-
-    _spawn_tool(
-        actors, tiered_cls, "ToolTier4", (360, -9870, -1170),
-        "recovery_tool_t4", "Industrial Rigging + Cutting Kit", 3,
-    )
-    _spawn_tiered(
-        actors, tiered_cls, "TransformerT4", (1510, -10020, -1160),
-        "transformer_core", "Breach-Fused Transformer Core", 4,
-        heavy=True, mass=245.0, dismantle_scrap=28,
-        dismantle_component="breach_core", dismantle_amount=1,
-    )
-    _spawn_tiered(
-        actors, tiered_cls, "AncientDriveT4", (-1650, -10600, -1190),
-        "breach_drive", "Ancient Breach Drive", 4,
-        heavy=True, mass=310.0, dismantle_scrap=34,
-        dismantle_component="breach_core", dismantle_amount=2,
-    )
-
-    _spawn_tiered(
-        actors, tiered_cls, "MedicalSupplies", (-1220, 1430, 112),
-        "medical_supplies", "Sealed Medical Supplies", 1,
-        amount=2, heavy=False, mass=0.8, dismantle_scrap=1,
-        dismantleable=False,
-    )
-
+    _spawn_tool(actors, tiered_cls, "ToolTier2", (1325, 1040, 112), "recovery_tool_t2", "Pry + Cutting Recovery Kit", 1)
+    _spawn_tiered(actors, tiered_cls, "AlternatorT2", (1940, 1050, 95), "alternator", "Vehicle Alternator", 2,
+                  heavy=True, mass=19.0, dismantle_scrap=4, dismantle_component="copper_coil", dismantle_amount=1)
+    _spawn_tiered(actors, tiered_cls, "CompressorT2", (2220, 1190, 108), "compressor", "Workshop Compressor", 2,
+                  heavy=True, mass=34.0, dismantle_scrap=6, dismantle_component="motor", dismantle_amount=1)
+    _spawn_tool(actors, tiered_cls, "ToolTier3", (-300, -7440, -780), "recovery_tool_t3", "Powered Recovery Toolset", 2)
+    _spawn_tiered(actors, tiered_cls, "LiftMotorT3", (1160, -7870, -790), "industrial_motor", "Metro Lift Drive", 3,
+                  heavy=True, mass=92.0, dismantle_scrap=14, dismantle_component="motor", dismantle_amount=2)
+    _spawn_tiered(actors, tiered_cls, "PumpAssemblyT3", (-1120, -8030, -790), "industrial_pump", "Flood-Control Pump Assembly", 3,
+                  heavy=True, mass=118.0, dismantle_scrap=16, dismantle_component="copper_coil", dismantle_amount=2)
+    _spawn_tool(actors, tiered_cls, "ToolTier4", (360, -9870, -1170), "recovery_tool_t4", "Industrial Rigging + Cutting Kit", 3)
+    _spawn_tiered(actors, tiered_cls, "TransformerT4", (1510, -10020, -1160), "transformer_core", "Breach-Fused Transformer Core", 4,
+                  heavy=True, mass=245.0, dismantle_scrap=28, dismantle_component="breach_core", dismantle_amount=1)
+    _spawn_tiered(actors, tiered_cls, "AncientDriveT4", (-1650, -10600, -1190), "breach_drive", "Ancient Breach Drive", 4,
+                  heavy=True, mass=310.0, dismantle_scrap=34, dismantle_component="breach_core", dismantle_amount=2)
+    _spawn_tiered(actors, tiered_cls, "MedicalSupplies", (-1220, 1430, 112), "medical_supplies", "Sealed Medical Supplies", 1,
+                  amount=2, heavy=False, mass=0.8, dismantle_scrap=1, dismantleable=False)
     for index, x in enumerate((-1140, -1010, -880, -750, -620)):
-        _spawn_tiered(
-            actors, tiered_cls, f"CableBundle{index:02d}", (x, 1660, 108),
-            "cable", "Salvaged Cable Bundle", 1,
-            amount=3, heavy=False, mass=2.7, dismantle_scrap=1,
-            dismantleable=True,
-        )
+        _spawn_tiered(actors, tiered_cls, f"CableBundle{index:02d}", (x, 1660, 108), "cable", "Salvaged Cable Bundle", 1,
+                      amount=3, heavy=False, mass=2.7, dismantle_scrap=1, dismantleable=True)
 
 
 def _stage_recovery_and_fabrication(actors, winch_cls, fabricator_cls):
@@ -213,31 +142,25 @@ def _stage_recovery_and_fabrication(actors, winch_cls, fabricator_cls):
 def apply_all():
     if not rw.asset_library.does_asset_exist(rw.BOOTSTRAP_MAP):
         return
-
     materials = rv.ensure_material_library()
     tiered_path, winch_path, fabricator_path = _ensure_blueprints(materials)
-
     tiered_cls = rw.blueprint_class(tiered_path)
     winch_cls = rw.blueprint_class(winch_path)
     fabricator_cls = rw.blueprint_class(fabricator_path)
     if not tiered_cls or not winch_cls or not fabricator_cls:
         rw.log("GDD salvage/fabrication pass waiting for native classes to compile")
         return
-
     level = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     level.load_level(rw.BOOTSTRAP_MAP)
-
     for actor in list(actors.get_all_level_actors()):
         try:
             if actor.get_actor_label().startswith(PREFIX):
                 actors.destroy_actor(actor)
         except Exception:
             pass
-
     _stage_salvage_progression(actors, tiered_cls)
     _stage_recovery_and_fabrication(actors, winch_cls, fabricator_cls)
-
     level.save_current_level()
     try:
         rw.asset_library.save_directory(rw.ROOT, only_if_is_dirty=False, recursive=True)
