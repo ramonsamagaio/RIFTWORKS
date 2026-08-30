@@ -19,18 +19,22 @@ ARiftBreachGolem::ARiftBreachGolem()
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     AIControllerClass = AAIController::StaticClass();
 
-    GetCapsuleComponent()->InitCapsuleSize(62.0f, 118.0f);
+    // ACharacter actor origin is the center of the capsule, not the floor.
+    // Keep the procedural body entirely inside a capsule whose bottom nearly
+    // matches the visible feet. The old layout left ~1.1 m of invisible air
+    // below the legs and made a correctly-grounded Character look airborne.
+    GetCapsuleComponent()->InitCapsuleSize(62.0f, 150.0f);
     GetMesh()->SetVisibility(false);
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 280.0f, 0.0f);
 
-    Torso = MakeBlock(TEXT("Torso"), FVector(0, 0, 125), FVector(0.85f, 0.58f, 1.05f));
-    Head = MakeBlock(TEXT("Head"), FVector(0, 0, 235), FVector(0.58f, 0.58f, 0.55f));
-    LeftArm = MakeBlock(TEXT("LeftArm"), FVector(0, -78, 138), FVector(0.38f, 0.38f, 0.95f));
-    RightArm = MakeBlock(TEXT("RightArm"), FVector(0, 78, 138), FVector(0.38f, 0.38f, 0.95f));
-    LeftLeg = MakeBlock(TEXT("LeftLeg"), FVector(0, -37, 38), FVector(0.45f, 0.45f, 0.85f));
-    RightLeg = MakeBlock(TEXT("RightLeg"), FVector(0, 37, 38), FVector(0.45f, 0.45f, 0.85f));
+    Torso = MakeBlock(TEXT("Torso"), FVector(0, 0, -18), FVector(0.85f, 0.58f, 1.05f));
+    Head = MakeBlock(TEXT("Head"), FVector(0, 0, 92), FVector(0.58f, 0.58f, 0.55f));
+    LeftArm = MakeBlock(TEXT("LeftArm"), FVector(0, -78, -5), FVector(0.38f, 0.38f, 0.95f));
+    RightArm = MakeBlock(TEXT("RightArm"), FVector(0, 78, -5), FVector(0.38f, 0.38f, 0.95f));
+    LeftLeg = MakeBlock(TEXT("LeftLeg"), FVector(0, -37, -105), FVector(0.45f, 0.45f, 0.85f));
+    RightLeg = MakeBlock(TEXT("RightLeg"), FVector(0, 37, -105), FVector(0.45f, 0.45f, 0.85f));
 
     CoreLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("BreachCoreLight"));
     CoreLight->SetupAttachment(Torso);
@@ -64,7 +68,6 @@ void ARiftBreachGolem::BeginPlay()
     TargetPlayer = Cast<ARiftPlayerCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 
-    // Low-poly stays cheap, but it should read as Breach machinery rather than Engine debug cubes.
     UMaterialInterface* Stone = Cast<UMaterialInterface>(StaticLoadObject(
         UMaterialInterface::StaticClass(), nullptr,
         TEXT("/Game/Riftworks/Materials/World/M_Breach_BlackStone.M_Breach_BlackStone")));
