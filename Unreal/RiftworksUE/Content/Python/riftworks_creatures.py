@@ -34,7 +34,7 @@ def apply_all():
         ((-1020, -9650, -1130), 1.18, 275.0),
     ]
     for index, (location, scale, speed) in enumerate(encounters):
-        crawler = actors.spawn_actor_from_class(crawler_cls, unreal.Vector(*location), unreal.Rotator())
+        crawler = actors.spawn_actor_from_class(crawler_cls, unreal.Vector(*location), rw.rotator())
         if not crawler:
             continue
         crawler.set_actor_label(f"{PREFIX}{index:02d}")
