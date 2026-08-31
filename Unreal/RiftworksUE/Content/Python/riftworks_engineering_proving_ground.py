@@ -7,14 +7,19 @@ PREFIX = "RIFT_GDD_MACHINE_"
 
 
 def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
-    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+    return rw.rotator(pitch=pitch, yaw=yaw, roll=roll)
 
 
 def _spawn(actors, bp_path, label, location, rotation=(0.0, 0.0, 0.0)):
     cls = rw.blueprint_class(bp_path)
     if not cls:
         return None
-    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotator(*rotation))
+    pitch, yaw, roll = rotation
+    actor = actors.spawn_actor_from_class(
+        cls,
+        unreal.Vector(*location),
+        _rotator(pitch=pitch, yaw=yaw, roll=roll),
+    )
     if actor:
         try:
             actor.set_actor_label(PREFIX + label)
@@ -67,12 +72,13 @@ def apply_all():
     chassis = _spawn(actors, platform_path, "Cart_Chassis", (origin.x, origin.y, origin.z))
     _physics(chassis, True)
 
-    # Wheel cylinders need a 90-degree pitch to place their axle horizontally.
+    # Engine cylinder axis is local Z. Roll 90 degrees turns that axis into local Y,
+    # which is the left-right axle direction for this X-forward cart layout.
     wheel_specs = [
-        ("FrontL", wheel_path, (origin.x + 110.0, origin.y - 145.0, origin.z - 55.0), (90.0, 0.0, 0.0)),
-        ("FrontR", wheel_path, (origin.x + 110.0, origin.y + 145.0, origin.z - 55.0), (90.0, 0.0, 0.0)),
-        ("RearL", motor_path, (origin.x - 110.0, origin.y - 145.0, origin.z - 55.0), (90.0, 0.0, 0.0)),
-        ("RearR", motor_path, (origin.x - 110.0, origin.y + 145.0, origin.z - 55.0), (90.0, 0.0, 0.0)),
+        ("FrontL", wheel_path, (origin.x + 110.0, origin.y - 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
+        ("FrontR", wheel_path, (origin.x + 110.0, origin.y + 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
+        ("RearL", motor_path, (origin.x - 110.0, origin.y - 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
+        ("RearR", motor_path, (origin.x - 110.0, origin.y + 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
     ]
     wheels = []
     for name, path, pos, rot in wheel_specs:
@@ -95,7 +101,7 @@ def apply_all():
         _physics(part, False)
 
     level.save_current_level()
-    rw.log("Engineering proving ground staged: generic motor cart plus loose FAS parts for G/T connection testing")
+    rw.log("Engineering proving ground staged: wheel axles normalized to local Y + generic motor cart + loose FAS parts")
 
 
 if __name__ == "__main__":
