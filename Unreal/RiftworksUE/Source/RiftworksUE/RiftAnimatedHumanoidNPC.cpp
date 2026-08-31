@@ -6,19 +6,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "UObject/UObjectGlobals.h"
-
-namespace
-{
-    static const TCHAR* UALRoot = TEXT("/Game/Riftworks/Animations/UAL1_Standard/SkeletalMeshes/");
-
-    template <typename T>
-    T* LoadUALAsset(const TCHAR* AssetName)
-    {
-        const FString Path = FString::Printf(TEXT("%s%s.%s"), UALRoot, AssetName, AssetName);
-        return LoadObject<T>(nullptr, *Path);
-    }
-}
 
 ARiftAnimatedHumanoidNPC::ARiftAnimatedHumanoidNPC()
 {
@@ -33,9 +20,11 @@ void ARiftAnimatedHumanoidNPC::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Do not trust stale Blueprint references here. The Colossus is known to work
-    // with this exact UAL1 mesh/animation family, so human enemies use the same
-    // native asset family and the same AnimationSingleNode strategy.
+    // BP_RiftAnimatedHumanoid is authored by riftworks_runtime_fixes from the
+    // exact runtime_character_assets() mesh + animation family used by the
+    // working Colossus pipeline. Never overwrite those references here with a
+    // guessed content path: imported GLB asset layouts can differ between UE
+    // versions and a failed LoadObject used to replace valid clips with null.
     LoadColossusAnimationFamily();
     NormalizeVisualToCapsule();
     GroundCapsuleToWorld();
@@ -54,20 +43,17 @@ void ARiftAnimatedHumanoidNPC::BeginPlay()
 void ARiftAnimatedHumanoidNPC::LoadColossusAnimationFamily()
 {
     USkeletalMeshComponent* MeshComponent = GetMesh();
-    USkeletalMesh* RuntimeMesh = LoadUALAsset<USkeletalMesh>(TEXT("UAL1_Standard"));
-    if (MeshComponent && RuntimeMesh)
+    if (!MeshComponent)
     {
-        MeshComponent->SetSkeletalMesh(RuntimeMesh);
+        return;
     }
 
-    IdleAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardIdle_Loop"));
-    WalkAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardWalk_Loop"));
-    RunAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardJog_Fwd_Loop"));
-    PistolIdleAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardPistol_Idle_Loop"));
-    PistolShootAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardPistol_Shoot"));
-    HitAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardHit_Chest"));
-    DeathAnimation = LoadUALAsset<UAnimSequenceBase>(TEXT("UAL1_StandardDeath01"));
+    // Same proven strategy as the mannequin Colossus: a Skeleton-native mesh
+    // with AnimationSingleNode playback. The compatible assets themselves are
+    // selected by the editor bootstrap, which can inspect the assets Unreal
+    // actually imported instead of guessing package names in native code.
     bUseSingleNodeAnimationFallback = true;
+    MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 }
 
 void ARiftAnimatedHumanoidNPC::NormalizeVisualToCapsule()
@@ -104,10 +90,9 @@ void ARiftAnimatedHumanoidNPC::GroundCapsuleToWorld()
 
     const FVector Current = GetActorLocation();
 
-    // IMPORTANT: never begin this trace hundreds of centimeters above the NPC.
-    // Indoors that made the first blocking hit a ceiling/awning and teleported the
-    // enemy onto it, which visually read as floating. Trace from capsule level
-    // downward only, then let CharacterMovement own floor contact afterwards.
+    // Start at capsule level, never hundreds of centimeters above the NPC.
+    // Indoors the old high trace could hit a ceiling/awning first and teleport
+    // the character onto it, which visually read as floating above the floor.
     const FVector Start = Current + FVector(0.0f, 0.0f, 8.0f);
     const FVector End = Current - FVector(0.0f, 0.0f, 2200.0f);
     FHitResult Hit;
