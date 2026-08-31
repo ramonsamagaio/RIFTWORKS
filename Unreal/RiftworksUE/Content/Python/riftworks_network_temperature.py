@@ -8,7 +8,7 @@ PREFIX = "RIFT_GDD_NETWORK_"
 
 
 def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
-    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+    return rw.rotator(pitch=pitch, yaw=yaw, roll=roll)
 
 
 def _material(component, material):
@@ -19,8 +19,13 @@ def _material(component, material):
             pass
 
 
+def _rotation_tuple(rotation):
+    pitch, yaw, roll = rotation
+    return _rotator(pitch=pitch, yaw=yaw, roll=roll)
+
+
 def _spawn(actors, cls, label, location, rotation=(0.0, 0.0, 0.0)):
-    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotator(*rotation))
+    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotation_tuple(rotation))
     if actor:
         try:
             actor.set_actor_label(PREFIX + label)
@@ -85,7 +90,7 @@ def _ensure_blueprints(materials):
 
 def _spawn_fragile_barricade(actors, materials, label, location, rotation=(0.0, 0.0, 0.0)):
     try:
-        actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, unreal.Vector(*location), _rotator(*rotation))
+        actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, unreal.Vector(*location), _rotation_tuple(rotation))
         if not actor:
             return None
         actor.set_actor_label(PREFIX + label)
