@@ -72,17 +72,18 @@ def apply_all():
     chassis = _spawn(actors, platform_path, "Cart_Chassis", (origin.x, origin.y, origin.z))
     _physics(chassis, True)
 
-    # Engine cylinder axis is local Z. Roll 90 degrees turns that axis into local Y,
-    # which is the left-right axle direction for this X-forward cart layout.
+    # Wheel mesh orientation is owned by ARiftAssemblyPart::OnConstruction.
+    # Keep the Actor transform neutral so the native local-Y axle is not rotated
+    # a second time and remains aligned with ActorRightVector motor torque.
     wheel_specs = [
-        ("FrontL", wheel_path, (origin.x + 110.0, origin.y - 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
-        ("FrontR", wheel_path, (origin.x + 110.0, origin.y + 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
-        ("RearL", motor_path, (origin.x - 110.0, origin.y - 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
-        ("RearR", motor_path, (origin.x - 110.0, origin.y + 145.0, origin.z - 55.0), (0.0, 0.0, 90.0)),
+        ("FrontL", wheel_path, (origin.x + 110.0, origin.y - 145.0, origin.z - 55.0)),
+        ("FrontR", wheel_path, (origin.x + 110.0, origin.y + 145.0, origin.z - 55.0)),
+        ("RearL", motor_path, (origin.x - 110.0, origin.y - 145.0, origin.z - 55.0)),
+        ("RearR", motor_path, (origin.x - 110.0, origin.y + 145.0, origin.z - 55.0)),
     ]
     wheels = []
-    for name, path, pos, rot in wheel_specs:
-        wheel = _spawn(actors, path, f"Cart_{name}", pos, rot)
+    for name, path, pos in wheel_specs:
+        wheel = _spawn(actors, path, f"Cart_{name}", pos)
         _physics(wheel, True)
         wheels.append(wheel)
         _joint(actors, hinge_path, f"Cart_Hinge_{name}", chassis, wheel, pos)
@@ -101,7 +102,7 @@ def apply_all():
         _physics(part, False)
 
     level.save_current_level()
-    rw.log("Engineering proving ground staged: wheel axles normalized to local Y + generic motor cart + loose FAS parts")
+    rw.log("Engineering proving ground staged: native local-Y wheel axles + generic motor cart + loose FAS parts")
 
 
 if __name__ == "__main__":
