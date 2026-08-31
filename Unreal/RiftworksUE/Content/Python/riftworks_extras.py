@@ -78,7 +78,6 @@ def apply_extra_level_setup(paths: dict[str, str]) -> None:
         except Exception:
             pass
 
-    # Idempotent cleanup for extras only.
     for actor in all_actors:
         try:
             if actor.get_actor_label().startswith("RIFT_EXTRA_"):
@@ -89,7 +88,7 @@ def apply_extra_level_setup(paths: dict[str, str]) -> None:
     floodlight = by_label.get("RIFT_AUTO_Floodlight")
     button_class = rw.blueprint_class(paths.get("BP_RiftLogicButton", ""))
     if button_class:
-        button = actors.spawn_actor_from_class(button_class, unreal.Vector(520, 3770, 80), unreal.Rotator())
+        button = actors.spawn_actor_from_class(button_class, unreal.Vector(520, 3770, 80), rw.rotator())
         if button:
             button.set_actor_label("RIFT_EXTRA_StarterLightButton")
             if floodlight:
@@ -102,7 +101,7 @@ def apply_extra_level_setup(paths: dict[str, str]) -> None:
     sensor_class = rw.blueprint_class(paths.get("BP_RiftLogicSensor", ""))
     harpoon = by_label.get("RIFT_AUTO_Harpoon")
     if sensor_class and harpoon:
-        sensor = actors.spawn_actor_from_class(sensor_class, unreal.Vector(4550, -4350, 80), unreal.Rotator())
+        sensor = actors.spawn_actor_from_class(sensor_class, unreal.Vector(4550, -4350, 80), rw.rotator())
         if sensor:
             sensor.set_actor_label("RIFT_EXTRA_HarpoonSensor")
             rw.safe_set(sensor, "sensor_radius", 1150.0)
@@ -117,11 +116,10 @@ def apply_extra_level_setup(paths: dict[str, str]) -> None:
             unreal.Vector(-3600, -2800, 140),
             unreal.Vector(-4700, -7600, 140),
         ]):
-            golem = actors.spawn_actor_from_class(golem_class, pos, unreal.Rotator())
+            golem = actors.spawn_actor_from_class(golem_class, pos, rw.rotator())
             if golem:
                 golem.set_actor_label(f"RIFT_EXTRA_BreachGolem_{index:02d}")
 
-    # Breach luminance at the deep end gives the underground a readable supernatural target.
     luminance_path = f"{rw.GAMEPLAY_BP_DIR}/BP_RiftBreachLuminance"
     luminance = rw.spawn_bp(actors, luminance_path, unreal.Vector(-4000, -12500, -1760))
     if luminance:
