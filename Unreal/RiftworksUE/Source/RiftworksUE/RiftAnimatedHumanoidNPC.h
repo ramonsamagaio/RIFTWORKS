@@ -14,6 +14,7 @@ class RIFTWORKSUE_API ARiftAnimatedHumanoidNPC : public ARiftHumanoidNPC
 public:
     ARiftAnimatedHumanoidNPC();
     virtual void Tick(float DeltaSeconds) override;
+    virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
     virtual void BeginPlay() override;
@@ -23,6 +24,7 @@ private:
     void NormalizeVisualToCapsule();
     void GroundCapsuleToWorld();
     void UpdateColossusStyleAnimation();
+    void DriveDeterministicMovement(float DeltaSeconds);
     bool IsRuntimeAnimationCompatible(const UAnimSequenceBase* Animation) const;
 
     TObjectPtr<UAnimSequenceBase> RuntimeAnimation = nullptr;
