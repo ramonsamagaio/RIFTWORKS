@@ -19,6 +19,7 @@ try:
     import riftworks_road_graph
     import riftworks_engineering_proving_ground
     import riftworks_production_player
+    import riftworks_source_audit
 
     required = [
         "/Game/Riftworks/Blueprints/BP_RiftPlayer",
@@ -54,8 +55,12 @@ try:
     # Always last. All generated actors are normalized after every older pass,
     # so legacy pivot/Rotator assumptions cannot re-corrupt the playable map.
     riftworks_instance_polish.apply_all()
+
+    # Source-level guardrail. Any future direct positional Unreal Rotator call
+    # fails loudly instead of silently rotating world geometry on the wrong axes.
+    riftworks_source_audit.apply_all()
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish audit order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish -> source_audit order."
     )
