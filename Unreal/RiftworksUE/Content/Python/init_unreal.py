@@ -23,6 +23,7 @@ try:
     import riftworks_engineering_proving_ground
     import riftworks_production_player
     import riftworks_art_layout_sanitize
+    import riftworks_cosmetic_collision
     import riftworks_source_audit
 
     required = [
@@ -63,6 +64,10 @@ try:
     # safehouse layout only after all functional actors have taken their places.
     riftworks_art_layout_sanitize.apply_all()
 
+    # Fine visual detail should never become invisible player-blocking collision.
+    # The structural greybox underneath remains the authoritative collision shell.
+    riftworks_cosmetic_collision.apply_all()
+
     # Always last. All generated actors are normalized after every art/gameplay pass,
     # so legacy pivot/Rotator assumptions cannot re-corrupt the playable map.
     riftworks_instance_polish.apply_all()
@@ -73,5 +78,5 @@ try:
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> beauty_pass -> lived_in_pass -> atmosphere_refine -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> art_layout_sanitize -> FINAL instance_polish -> source_audit order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> beauty_pass -> lived_in_pass -> atmosphere_refine -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> art_layout_sanitize -> cosmetic_collision -> FINAL instance_polish -> source_audit order."
     )
