@@ -18,15 +18,15 @@ def _tag(actor, name):
 
 
 def _cube(actors, name, loc, size, mat, rot=None):
-    return _tag(vs._spawn_cube(actors, name, loc, size, mat, rot or unreal.Rotator()), name)
+    return _tag(vs._spawn_cube(actors, name, loc, size, mat, rot or rw.rotator()), name)
 
 
 def _cyl(actors, name, loc, d, h, mat, rot=None):
-    return _tag(vs._spawn_cylinder(actors, name, loc, d, h, mat, rot or unreal.Rotator()), name)
+    return _tag(vs._spawn_cylinder(actors, name, loc, d, h, mat, rot or rw.rotator()), name)
 
 
 def _cone(actors, name, loc, d, h, mat, rot=None):
-    return _tag(vs._spawn_cone(actors, name, loc, d, h, mat, rot or unreal.Rotator()), name)
+    return _tag(vs._spawn_cone(actors, name, loc, d, h, mat, rot or rw.rotator()), name)
 
 
 def _light(actors, name, loc, color, intensity, radius):
@@ -90,7 +90,7 @@ def _breach_spire(actors, mats):
         (x, y, z + 55),
         (850, 850, 110),
         mats["breach_dark"],
-        unreal.Rotator(roll=0.0, pitch=0.0, yaw=17.0),
+        rw.rotator(yaw=17.0),
     )
     for i, (offset, height, width, pitch) in enumerate((
         ((0, 0), 1700, 290, -5), ((240, 80), 1050, 190, 11), ((-250, 130), 920, 165, -14),
@@ -104,7 +104,7 @@ def _breach_spire(actors, mats):
             width,
             height,
             mats["breach"] if i == 0 else mats["breach_dark"],
-            unreal.Rotator(roll=0.0, pitch=float(pitch), yaw=float(i * 37)),
+            rw.rotator(pitch=float(pitch), yaw=float(i * 37)),
         )
     _light(actors, "SpireGlow", (x, y, z + 880), (96, 55, 255), 520, 1450)
 
