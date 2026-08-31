@@ -9,6 +9,7 @@ try:
     import riftworks_accessibility_pass
     import riftworks_weathering
     import riftworks_landmarks
+    import riftworks_beauty_pass
     import riftworks_encounter_staging
     import riftworks_instance_polish
     import riftworks_salvage_fabrication
@@ -42,6 +43,7 @@ try:
     riftworks_accessibility_pass.apply_all()
     riftworks_weathering.apply_all()
     riftworks_landmarks.apply_all()
+    riftworks_beauty_pass.apply_all()
     riftworks_encounter_staging.apply_all()
     riftworks_salvage_fabrication.apply_all()
     riftworks_logistics_machines.apply_all()
@@ -52,7 +54,7 @@ try:
     riftworks_engineering_proving_ground.apply_all()
     riftworks_production_player.apply_all()
 
-    # Always last. All generated actors are normalized after every older pass,
+    # Always last. All generated actors are normalized after every art/gameplay pass,
     # so legacy pivot/Rotator assumptions cannot re-corrupt the playable map.
     riftworks_instance_polish.apply_all()
 
@@ -62,5 +64,5 @@ try:
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish -> source_audit order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> beauty_pass -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish -> source_audit order."
     )
