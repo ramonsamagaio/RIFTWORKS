@@ -4,6 +4,8 @@
 #include "RiftHumanoidNPC.h"
 #include "RiftAnimatedHumanoidNPC.generated.h"
 
+class UAnimSequenceBase;
+
 UCLASS(Blueprintable)
 class RIFTWORKSUE_API ARiftAnimatedHumanoidNPC : public ARiftHumanoidNPC
 {
@@ -17,7 +19,11 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    void LoadColossusAnimationFamily();
     void NormalizeVisualToCapsule();
     void GroundCapsuleToWorld();
-    float GroundAuditTimer = 0.0f;
+    void UpdateColossusStyleAnimation();
+    bool IsRuntimeAnimationCompatible(const UAnimSequenceBase* Animation) const;
+
+    TObjectPtr<UAnimSequenceBase> RuntimeAnimation = nullptr;
 };
