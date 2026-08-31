@@ -13,6 +13,7 @@ try:
     import riftworks_lived_in_pass
     import riftworks_atmosphere_refine
     import riftworks_city_map
+    import riftworks_city_map_v2
     import riftworks_encounter_staging
     import riftworks_instance_polish
     import riftworks_salvage_fabrication
@@ -46,7 +47,8 @@ try:
     riftworks_extras.apply_all()
 
     # Keep the proven underground / Breach route as the structural foundation.
-    # The modular city pass later removes only the obsolete surface greybox.
+    # The final modular city pass removes obsolete surface art and replaces the
+    # legacy cube stairs with CityBuildings stair modules.
     riftworks_vertical_slice.apply_all()
     riftworks_scene_dressing.apply_all()
     riftworks_accessibility_pass.apply_all()
@@ -56,14 +58,15 @@ try:
     riftworks_lived_in_pass.apply_all()
     riftworks_atmosphere_refine.apply_all()
 
-    # If the committed CityBuildings source pack is present, it becomes the
-    # authoritative surface world: real streets, modular enterable shells,
-    # subway headhouse, skyline and placed loot containers.
+    # CityBuildings is authoritative whenever the committed source pack exists.
+    # V2 builds the original modular district, then adds sidewalks, facade
+    # articulation, coherent service yards, richer skyline, CityKit subway
+    # descents and deterministic loot containers.
     city_ready = False
-    if riftworks_city_map.has_source_pack():
-        city_ready = bool(riftworks_city_map.apply_all())
+    if riftworks_city_map_v2.has_source_pack():
+        city_ready = bool(riftworks_city_map_v2.apply_all())
         if city_ready:
-            unreal.log("[RIFTWORKS] Modular CityBuildings map is authoritative for the surface district.")
+            unreal.log("[RIFTWORKS] CityBuildings V2 is authoritative for the playable surface district.")
 
     riftworks_encounter_staging.apply_all()
     riftworks_salvage_fabrication.apply_all()
@@ -102,5 +105,5 @@ try:
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run setup -> polish -> extras -> vertical_slice -> accessibility -> city_map -> encounter_staging -> gameplay systems -> production_player -> runtime_fixes -> final polish -> source_audit."
+        "After C++ compiles, run setup -> polish -> extras -> vertical_slice -> accessibility -> city_map_v2 -> encounter_staging -> gameplay systems -> production_player -> runtime_fixes -> final polish -> source_audit."
     )
