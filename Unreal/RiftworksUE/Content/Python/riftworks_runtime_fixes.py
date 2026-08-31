@@ -151,11 +151,14 @@ def _configure_survival_player():
         try:
             light = target.get_editor_property("flashlight")
             rw.safe_set(light, "light_function_material", None)
-            rw.safe_set(light, "intensity", 2200.0)
-            rw.safe_set(light, "attenuation_radius", 6500.0)
-            rw.safe_set(light, "inner_cone_angle", 15.0)
-            rw.safe_set(light, "outer_cone_angle", 29.0)
-            rw.safe_set(light, "volumetric_scattering_intensity", 0.025)
+            rw.safe_set(light, "intensity", 1150.0)
+            rw.safe_set(light, "attenuation_radius", 5000.0)
+            rw.safe_set(light, "inner_cone_angle", 14.0)
+            rw.safe_set(light, "outer_cone_angle", 32.0)
+            rw.safe_set(light, "source_radius", 1.2)
+            rw.safe_set(light, "soft_source_radius", 5.0)
+            rw.safe_set(light, "temperature", 4500.0)
+            rw.safe_set(light, "volumetric_scattering_intensity", 0.008)
             rw.safe_set(light, "cast_shadows", True)
         except Exception:
             pass
