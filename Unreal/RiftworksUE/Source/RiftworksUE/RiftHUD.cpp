@@ -210,7 +210,10 @@ void ARiftHUD::DrawInventoryHUD(ARiftPlayerCharacter* Player, float W, float H)
     DrawRect(Panel, LeftX, TopY, PanelW, PanelH);
     DrawRect(Panel, RightX, TopY, PanelW, PanelH);
     DrawText(TEXT("BACKPACK"), Accent, LeftX + 24.0f, TopY + 18.0f, Font, 1.25f, false);
-    DrawText(OpenContainerActor ? OpenContainerActor->ContainerName.ToString().ToUpper() : TEXT("NEARBY STORAGE"), Accent, RightX + 24.0f, TopY + 18.0f, Font, 1.25f, false);
+    const FString ContainerTitle = OpenContainerActor
+        ? OpenContainerActor->ContainerName.ToString().ToUpper()
+        : FString(TEXT("NEARBY STORAGE"));
+    DrawText(ContainerTitle, Accent, RightX + 24.0f, TopY + 18.0f, Font, 1.25f, false);
 
     const float Mass = URiftInventoryRules::GetInventoryMassKg(Player);
     const float Volume = URiftInventoryRules::GetInventoryVolumeL(Player);
@@ -229,7 +232,10 @@ void ARiftHUD::DrawInventoryHUD(ARiftPlayerCharacter* Player, float W, float H)
         {
             DrawRect(ItemColor(ItemId), X + 4.0f, Y + 4.0f, RiftHUDPrivate::SlotSize - 8.0f, RiftHUDPrivate::SlotSize - 8.0f);
             FString Label = OverrideName.IsEmpty() ? RiftHUDPrivate::FriendlyItemName(ItemId) : OverrideName;
-            if (Label.Len() > 10) Label = Label.Left(10);
+            if (Label.Len() > 10)
+            {
+                Label = Label.Left(10);
+            }
             DrawText(Label, Text, X + 7.0f, Y + 9.0f, Font, 0.72f, false);
             DrawText(FString::Printf(TEXT("x%d"), Count), FLinearColor::White, X + 7.0f, Y + 38.0f, Font, 0.82f, false);
         }
@@ -242,7 +248,7 @@ void ARiftHUD::DrawInventoryHUD(ARiftPlayerCharacter* Player, float W, float H)
         const float X = StartXLeft + Col * (RiftHUDPrivate::SlotSize + RiftHUDPrivate::Gap);
         const float Y = StartY + Row * (RiftHUDPrivate::SlotSize + RiftHUDPrivate::Gap);
         const FName ItemId = PlayerSlotOrder[Index];
-        DrawSlot(X, Y, FName(*FString::Printf(TEXT("P_%d"), Index)), ItemId, GetPlayerItemCount(Player, ItemId), TEXT(""));
+        DrawSlot(X, Y, FName(*FString::Printf(TEXT("P_%d"), Index)), ItemId, GetPlayerItemCount(Player, ItemId), FString());
     }
 
     const int32 ContainerCapacity = OpenContainerActor ? FMath::Clamp(OpenContainerActor->CapacitySlots, 1, 30) : 20;
@@ -276,7 +282,7 @@ void ARiftHUD::DrawInventoryHUD(ARiftPlayerCharacter* Player, float W, float H)
         DrawText(InventoryMessage.ToString(), Accent, RightX + 24.0f, TopY + PanelH - 36.0f, Font, 0.82f, false);
     }
 
-    AddHitBox(FVector2D(RightX + PanelW - 44.0f, TopY + 12.0f), FVector2D(30.0f, 30.0f), TEXT("INV_CLOSE"), true, 10);
+    AddHitBox(FVector2D(RightX + PanelW - 44.0f, TopY + 12.0f), FVector2D(30.0f, 30.0f), FName(TEXT("INV_CLOSE")), true, 10);
     DrawText(TEXT("X"), Text, RightX + PanelW - 37.0f, TopY + 15.0f, Font, 1.1f, false);
 
     if (!DragSourceBox.IsNone() && PlayerOwner)
@@ -309,7 +315,7 @@ void ARiftHUD::NotifyHitBoxClick(FName BoxName)
     {
         return;
     }
-    if (BoxName == TEXT("INV_CLOSE"))
+    if (BoxName == FName(TEXT("INV_CLOSE")))
     {
         CloseInventory();
         return;
@@ -454,14 +460,18 @@ void ARiftHUD::SetInventoryInputMode(bool bEnabled)
         return;
     }
 
+    // Ignore input uses a stack internally. Reset first so opening a second
+    // container while the inventory is already visible can never strand movement.
+    PlayerOwner->ResetIgnoreMoveInput();
+    PlayerOwner->ResetIgnoreLookInput();
     PlayerOwner->bShowMouseCursor = bEnabled;
     PlayerOwner->bEnableClickEvents = bEnabled;
     PlayerOwner->bEnableMouseOverEvents = bEnabled;
-    PlayerOwner->SetIgnoreMoveInput(bEnabled);
-    PlayerOwner->SetIgnoreLookInput(bEnabled);
 
     if (bEnabled)
     {
+        PlayerOwner->SetIgnoreMoveInput(true);
+        PlayerOwner->SetIgnoreLookInput(true);
         FInputModeGameAndUI Mode;
         Mode.SetHideCursorDuringCapture(false);
         PlayerOwner->SetInputMode(Mode);
