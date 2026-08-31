@@ -1,0 +1,41 @@
+# RIFTWORKS - generated files that must never be committed
+
+# Unreal Engine generated folders
+**/Binaries/
+**/DerivedDataCache/
+**/Intermediate/
+**/Saved/
+
+# Visual Studio / IDE generated files
+**/.vs/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+*.user
+*.userprefs
+
+# Unreal build products / caches
+*.pch
+*.obj
+*.obj.rsp
+*.response
+*.modules
+*.target
+*.ubt
+*.uba
+*.bin
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Keep source assets, Unreal Content, Config, Source and project files tracked.
