@@ -24,11 +24,24 @@ def _copy(source, target, prop):
         pass
 
 
+def _component_mesh(component):
+    if not component:
+        return None
+    for prop in ("skeletal_mesh_asset", "skeletal_mesh"):
+        try:
+            mesh = component.get_editor_property(prop)
+            if mesh:
+                return mesh
+        except Exception:
+            pass
+    return None
+
+
 def _copy_player_defaults(source, target):
     for prop in [
         "health", "walk_speed", "sprint_speed", "field_of_view",
         "flashlight_battery", "flashlight_drain_per_second", "b_flashlight_on",
-        "rifle_damage", "rifle_range", "scrap",
+        "rifle_damage", "rifle_range", "scrap", "components",
         "idle_animation", "walk_animation", "run_animation", "crouch_animation", "pistol_shoot_animation",
         "max_stamina", "stamina", "sprint_drain_per_second", "stamina_recovery_per_second",
         "sprint_recovery_threshold", "sprint_fov_boost", "camera_interp_speed",
@@ -41,8 +54,9 @@ def _copy_player_defaults(source, target):
     try:
         source_mesh = source.get_editor_property("mesh")
         target_mesh = target.get_editor_property("mesh")
-        mesh_asset = source_mesh.get_editor_property("skeletal_mesh_asset")
-        rw.set_skeletal_mesh(target_mesh, mesh_asset)
+        mesh_asset = _component_mesh(source_mesh)
+        if mesh_asset:
+            rw.set_skeletal_mesh(target_mesh, mesh_asset)
     except Exception:
         pass
 
@@ -128,7 +142,12 @@ def _configure_survival_player():
     source = rw.blueprint_cdo(f"{rw.BP_DIR}/BP_RiftEngineeringPlayer")
     if target and source:
         _copy_player_defaults(source, target)
-        rw.safe_set(target, "flashlight_battery", max(25.0, float(target.get_editor_property("flashlight_battery"))))
+        try:
+            battery = float(target.get_editor_property("flashlight_battery"))
+            rw.safe_set(target, "flashlight_battery", max(25.0, battery))
+        except Exception:
+            rw.safe_set(target, "flashlight_battery", 100.0)
+        rw.safe_set(target, "b_flashlight_on", True)
         try:
             light = target.get_editor_property("flashlight")
             rw.safe_set(light, "light_function_material", None)
@@ -137,6 +156,7 @@ def _configure_survival_player():
             rw.safe_set(light, "inner_cone_angle", 15.0)
             rw.safe_set(light, "outer_cone_angle", 29.0)
             rw.safe_set(light, "volumetric_scattering_intensity", 0.025)
+            rw.safe_set(light, "cast_shadows", True)
         except Exception:
             pass
         rw.asset_library.save_asset(path, only_if_is_dirty=False)
