@@ -17,7 +17,7 @@ def _actors_by_label(actors):
 
 
 def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
-    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+    return rw.rotator(pitch=pitch, yaw=yaw, roll=roll)
 
 
 def _move(actor, location, rotation=None):
@@ -26,7 +26,11 @@ def _move(actor, location, rotation=None):
     try:
         actor.set_actor_location(unreal.Vector(*location), False, False)
         if rotation:
-            actor.set_actor_rotation(_rotator(*rotation), False)
+            pitch, yaw, roll = rotation
+            actor.set_actor_rotation(
+                _rotator(pitch=pitch, yaw=yaw, roll=roll),
+                False,
+            )
     except Exception:
         pass
 
