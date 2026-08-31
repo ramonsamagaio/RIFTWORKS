@@ -8,7 +8,7 @@ PREFIX = "RIFT_GDD_SALVAGE_"
 
 
 def _rotator(pitch=0.0, yaw=0.0, roll=0.0):
-    return unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw)
+    return rw.rotator(pitch=pitch, yaw=yaw, roll=roll)
 
 
 def _set_material(component, material):
@@ -59,7 +59,11 @@ def _ensure_blueprints(materials):
 
 def _spawn(actors, cls, label, location, rotation=None):
     pitch, yaw, roll = rotation or (0.0, 0.0, 0.0)
-    actor = actors.spawn_actor_from_class(cls, unreal.Vector(*location), _rotator(pitch, yaw, roll))
+    actor = actors.spawn_actor_from_class(
+        cls,
+        unreal.Vector(*location),
+        _rotator(pitch=pitch, yaw=yaw, roll=roll),
+    )
     if actor:
         try:
             actor.set_actor_label(PREFIX + label)
