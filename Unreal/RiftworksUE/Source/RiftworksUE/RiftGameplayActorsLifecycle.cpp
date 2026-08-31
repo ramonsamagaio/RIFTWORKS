@@ -33,6 +33,16 @@ void ARiftAssemblyPart::OnConstruction(const FTransform& Transform)
         return;
     }
 
+    // Engine BasicShapes Cylinder is Z-axis aligned. FAS defines the vehicle
+    // forward axis as +X and applies motor torque around ActorRightVector (+Y),
+    // so wheel/motor-wheel axles must also be local +Y. Roll 90 maps cylinder Z
+    // onto local Y. This normalization intentionally runs after ConfigurePart()
+    // so legacy Blueprint defaults cannot restore the old X-axis wheel pose.
+    if (PartType == ERiftAssemblyPartType::Wheel || PartType == ERiftAssemblyPartType::MotorWheel)
+    {
+        PhysicsMesh->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
+    }
+
     const TCHAR* MaterialPath = TEXT("/Game/Riftworks/Materials/World/M_Assembly_Steel.M_Assembly_Steel");
     if (PartType == ERiftAssemblyPartType::MotorWheel)
     {
