@@ -10,6 +10,7 @@ try:
     import riftworks_weathering
     import riftworks_landmarks
     import riftworks_beauty_pass
+    import riftworks_lived_in_pass
     import riftworks_encounter_staging
     import riftworks_instance_polish
     import riftworks_salvage_fabrication
@@ -44,6 +45,7 @@ try:
     riftworks_weathering.apply_all()
     riftworks_landmarks.apply_all()
     riftworks_beauty_pass.apply_all()
+    riftworks_lived_in_pass.apply_all()
     riftworks_encounter_staging.apply_all()
     riftworks_salvage_fabrication.apply_all()
     riftworks_logistics_machines.apply_all()
@@ -64,5 +66,5 @@ try:
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> beauty_pass -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish -> source_audit order."
+        "After C++ compiles, run Content/Python passes in setup -> polish -> extras -> vertical_slice -> scene_dressing -> accessibility -> weathering -> landmarks -> beauty_pass -> lived_in_pass -> encounter_staging -> salvage_fabrication -> logistics_machines -> creatures -> breach_progression -> network_temperature -> road_graph -> engineering_proving_ground -> production_player -> FINAL instance_polish -> source_audit order."
     )
