@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "RiftHumanoidNPC.h"
+#include "RiftPlayerCharacter.h"
 #include "RiftAnimatedHumanoidNPC.generated.h"
 
 class UAnimSequenceBase;
