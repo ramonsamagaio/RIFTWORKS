@@ -33,6 +33,8 @@ void ARiftAnimatedHumanoidNPC::BeginPlay()
     {
         Movement->SetMovementMode(MOVE_Walking);
         Movement->MaxWalkSpeed = WalkSpeed;
+        Movement->bRunPhysicsWithNoController = true;
+        Movement->bAlwaysCheckFloor = true;
     }
 
     CurrentFallbackAnimation = nullptr;
@@ -77,7 +79,9 @@ void ARiftAnimatedHumanoidNPC::NormalizeVisualToCapsule()
         RelativeZ = -GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - LocalBottom;
     }
 
-    MeshComponent->SetRelativeLocation(FVector(0.0f, 0.0f, RelativeZ));
+    // Sink only two centimeters into the contact plane. This hides tiny FBX/GLB
+    // sole offsets without changing the mathematically grounded capsule.
+    MeshComponent->SetRelativeLocation(FVector(0.0f, 0.0f, RelativeZ - 2.0f));
     MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 }
 
@@ -166,6 +170,114 @@ void ARiftAnimatedHumanoidNPC::UpdateColossusStyleAnimation()
     }
 }
 
+void ARiftAnimatedHumanoidNPC::DriveDeterministicMovement(float DeltaSeconds)
+{
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
+    if (!Movement || Movement->MovementMode == MOVE_None || Movement->IsFalling())
+    {
+        return;
+    }
+
+    FVector DesiredDirection = FVector::ZeroVector;
+    float DesiredSpeed = WalkSpeed * 0.62f;
+
+    if (PlayerTarget && bAlerted)
+    {
+        const FVector ToPlayerVector = PlayerTarget->GetActorLocation() - GetActorLocation();
+        const float Distance = ToPlayerVector.Size2D();
+        const FVector ToPlayer = ToPlayerVector.GetSafeNormal2D();
+
+        if (Distance > 1450.0f)
+        {
+            DesiredDirection = ToPlayer;
+            DesiredSpeed = CombatSpeed;
+        }
+        else if (Distance < 650.0f)
+        {
+            DesiredDirection = -ToPlayer;
+            DesiredSpeed = CombatSpeed * 0.72f;
+        }
+        else
+        {
+            // Never become a firing-range mannequin. Inside weapon range the
+            // enemy circles the player while keeping a little forward pressure.
+            const FVector Tangent(-ToPlayer.Y, ToPlayer.X, 0.0f);
+            const float PhaseSeed = static_cast<float>(GetUniqueID() % 17) * 0.37f;
+            const float Side = FMath::Sin(GetWorld()->GetTimeSeconds() * 0.85f + PhaseSeed) >= 0.0f ? 1.0f : -1.0f;
+            DesiredDirection = (Tangent * Side + ToPlayer * 0.18f).GetSafeNormal2D();
+            DesiredSpeed = CombatSpeed * 0.68f;
+        }
+
+        if (!ToPlayer.IsNearlyZero())
+        {
+            const FRotator Look = ToPlayer.Rotation();
+            SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, Look.Yaw, 0.0f), DeltaSeconds, 8.0f));
+        }
+    }
+    else if (!PatrolTarget.IsNearlyZero())
+    {
+        DesiredDirection = (PatrolTarget - GetActorLocation()).GetSafeNormal2D();
+        DesiredSpeed = WalkSpeed * 0.62f;
+    }
+
+    if (DesiredDirection.IsNearlyZero())
+    {
+        return;
+    }
+
+    Movement->MaxWalkSpeed = DesiredSpeed;
+    AddMovementInput(DesiredDirection, 1.0f, true);
+
+    // NavMesh is still preferred by the base AI when it exists, but movement
+    // must not freeze when Recast is absent or a request stalls. CharacterMovement
+    // owns collision and floor response; we only provide deterministic planar
+    // velocity when the requested movement produced effectively no motion.
+    if (Movement->Velocity.Size2D() < 18.0f)
+    {
+        Movement->Velocity = FVector(
+            DesiredDirection.X * DesiredSpeed,
+            DesiredDirection.Y * DesiredSpeed,
+            Movement->Velocity.Z);
+    }
+}
+
+float ARiftAnimatedHumanoidNPC::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+    const bool bWasDead = bDead;
+    const float Applied = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+    if (Applied <= 0.0f)
+    {
+        return Applied;
+    }
+
+    FVector Away = GetActorForwardVector() * -1.0f;
+    if (DamageCauser)
+    {
+        Away = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal2D();
+    }
+
+    if (!bDead)
+    {
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            Movement->Velocity += Away * 135.0f;
+        }
+    }
+    else if (!bWasDead && GetMesh() && GetMesh()->GetPhysicsAsset())
+    {
+        // A successful kill must be visually unmistakable. Use a ragdoll when
+        // the imported runtime mesh has a physics asset; otherwise the base class
+        // keeps the compatible UAL1 death animation as the fallback.
+        GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+        GetMesh()->SetAllBodiesSimulatePhysics(true);
+        GetMesh()->SetSimulatePhysics(true);
+        GetMesh()->WakeAllRigidBodies();
+        GetMesh()->AddImpulse(Away * 9000.0f, NAME_None, true);
+    }
+
+    return Applied;
+}
+
 void ARiftAnimatedHumanoidNPC::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -175,7 +287,9 @@ void ARiftAnimatedHumanoidNPC::Tick(float DeltaSeconds)
         return;
     }
 
-    // Mirror the proven Colossus rule: actual velocity selects a compatible UAL1
-    // clip and PlayAnimation drives the SkeletalMesh directly.
+    // The base class can use Recast when available. This layer guarantees visible
+    // locomotion even when navigation is missing/stalled, then chooses animation
+    // from the velocity that actually happened.
+    DriveDeterministicMovement(DeltaSeconds);
     UpdateColossusStyleAnimation();
 }
