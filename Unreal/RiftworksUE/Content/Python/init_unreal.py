@@ -25,6 +25,7 @@ try:
     import riftworks_engineering_proving_ground
     import riftworks_production_player
     import riftworks_runtime_fixes
+    import riftworks_runtime_repair
     import riftworks_art_layout_sanitize
     import riftworks_cosmetic_collision
     import riftworks_source_audit
@@ -48,7 +49,7 @@ try:
 
     # Keep the proven underground / Breach route as the structural foundation.
     # The final modular city pass removes obsolete surface art and replaces the
-    # legacy cube stairs with CityBuildings stair modules.
+    # legacy surface district with CityBuildings assets.
     riftworks_vertical_slice.apply_all()
     riftworks_scene_dressing.apply_all()
     riftworks_accessibility_pass.apply_all()
@@ -59,9 +60,6 @@ try:
     riftworks_atmosphere_refine.apply_all()
 
     # CityBuildings is authoritative whenever the committed source pack exists.
-    # V2 builds the original modular district, then adds sidewalks, facade
-    # articulation, coherent service yards, richer skyline, CityKit subway
-    # descents and deterministic loot containers.
     city_ready = False
     if riftworks_city_map_v2.has_source_pack():
         city_ready = bool(riftworks_city_map_v2.apply_all())
@@ -83,20 +81,18 @@ try:
     riftworks_engineering_proving_ground.apply_all()
     riftworks_production_player.apply_all()
 
-    # FINAL gameplay layer. This deliberately runs after encounter staging and
-    # production-player creation so stale humanoids are replaced by the same
-    # Skeleton-native / bounds-grounded strategy that already works on Colossus,
-    # and the stable flashlight + visual inventory pawn becomes GameMode default.
+    # FINAL gameplay layer. Stale humanoids are replaced by Skeleton-native
+    # runtime actors and the survival/inventory pawn becomes GameMode default.
     riftworks_runtime_fixes.apply_all()
 
-    # Resolve functional actors against the authored interior layout.
+    # FINAL WORLD REPAIR. This must happen after the runtime actors exist so it
+    # can restage them on guaranteed collision, add a real nav volume, replace
+    # the oversized stair-module chain, fill the black surface gaps and repair
+    # night lighting/material usage without earlier authoring passes undoing it.
+    riftworks_runtime_repair.apply_all()
+
     riftworks_art_layout_sanitize.apply_all()
-
-    # Old micro-detail layers are cosmetic. CityKit structural meshes keep their
-    # imported collision, while decorative legacy details never block the player.
     riftworks_cosmetic_collision.apply_all()
-
-    # All runtime actors get one final grounding/material sanity pass.
     riftworks_instance_polish.apply_all()
 
     # Source-level guardrail. Any future direct positional Unreal Rotator call
@@ -105,5 +101,5 @@ try:
 except Exception as exc:
     unreal.log_error(
         f"[RIFTWORKS] Automatic setup could not finish: {exc}. "
-        "After C++ compiles, run setup -> polish -> extras -> vertical_slice -> accessibility -> city_map_v2 -> encounter_staging -> gameplay systems -> production_player -> runtime_fixes -> final polish -> source_audit."
+        "After C++ compiles, run setup -> city_map_v2 -> runtime_fixes -> runtime_repair -> final polish -> source_audit."
     )
