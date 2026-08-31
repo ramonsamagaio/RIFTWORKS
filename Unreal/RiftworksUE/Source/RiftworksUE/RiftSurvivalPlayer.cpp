@@ -40,21 +40,21 @@ void ARiftSurvivalPlayerCharacter::BeginPlay()
         Flashlight->AttachToComponent(FirstPersonCamera, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
         Flashlight->SetMobility(EComponentMobility::Movable);
 
-        // Keep the source almost on the optical axis. A large forward offset can
-        // put a spotlight inside a wall when the camera is close to geometry,
-        // which looks exactly like direction-dependent flicker.
+        // Human-scale flashlight rather than a portable stadium lamp. The wider,
+        // softer 1150 lm beam preserves PBR texture detail and lets practical
+        // city lighting remain visible outside the hotspot.
         Flashlight->SetRelativeLocation(FVector(3.0f, 7.0f, -5.0f));
         Flashlight->SetRelativeRotation(FRotator(-0.35f, 0.0f, 0.0f));
-        Flashlight->SetIntensity(2350.0f);
-        Flashlight->SetAttenuationRadius(6800.0f);
-        Flashlight->SetInnerConeAngle(15.0f);
-        Flashlight->SetOuterConeAngle(30.0f);
-        Flashlight->SetSourceRadius(1.0f);
-        Flashlight->SetSoftSourceRadius(3.5f);
+        Flashlight->SetIntensity(1150.0f);
+        Flashlight->SetAttenuationRadius(5000.0f);
+        Flashlight->SetInnerConeAngle(14.0f);
+        Flashlight->SetOuterConeAngle(32.0f);
+        Flashlight->SetSourceRadius(1.2f);
+        Flashlight->SetSoftSourceRadius(5.0f);
         Flashlight->SetUseInverseSquaredFalloff(true);
-        Flashlight->SetVolumetricScatteringIntensity(0.018f);
+        Flashlight->SetVolumetricScatteringIntensity(0.008f);
         Flashlight->bUseTemperature = true;
-        Flashlight->SetTemperature(5000.0f);
+        Flashlight->SetTemperature(4500.0f);
         Flashlight->CastShadows = true;
         Flashlight->SetVisibility(true, false);
     }
@@ -100,11 +100,11 @@ void ARiftSurvivalPlayerCharacter::StabilizeFlashlight()
 
     if (bShouldBeVisible)
     {
-        Flashlight->SetIntensity(2350.0f);
-        Flashlight->SetAttenuationRadius(6800.0f);
-        Flashlight->SetInnerConeAngle(15.0f);
-        Flashlight->SetOuterConeAngle(30.0f);
-        Flashlight->SetVolumetricScatteringIntensity(0.018f);
+        Flashlight->SetIntensity(1150.0f);
+        Flashlight->SetAttenuationRadius(5000.0f);
+        Flashlight->SetInnerConeAngle(14.0f);
+        Flashlight->SetOuterConeAngle(32.0f);
+        Flashlight->SetVolumetricScatteringIntensity(0.008f);
     }
 }
 
