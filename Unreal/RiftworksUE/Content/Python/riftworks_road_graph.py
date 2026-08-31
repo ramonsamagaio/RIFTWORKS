@@ -48,7 +48,7 @@ def apply_all():
         except Exception:
             pass
 
-    road = actors.spawn_actor_from_class(cls, unreal.Vector(14500.0, 8500.0, 18.0), unreal.Rotator())
+    road = actors.spawn_actor_from_class(cls, unreal.Vector(14500.0, 8500.0, 18.0), rw.rotator())
     if road:
         road.set_actor_label(PREFIX + "OutskirtsNetwork")
         rw.safe_set(road, "seed", 731942)
