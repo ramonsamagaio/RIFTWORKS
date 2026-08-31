@@ -30,7 +30,7 @@ def apply_all():
     gravity = actors.spawn_actor_from_class(
         gravity_cls,
         unreal.Vector(1180.0, -10850.0, -1160.0),
-        unreal.Rotator(),
+        rw.rotator(),
     )
     if gravity:
         gravity.set_actor_label(PREFIX + "GravityEmitter")
