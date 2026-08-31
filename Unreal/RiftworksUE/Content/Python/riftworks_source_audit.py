@@ -30,6 +30,11 @@ def _is_project_rotator(call: ast.Call) -> bool:
     )
 
 
+def _is_local_rotator(call: ast.Call) -> bool:
+    func = call.func
+    return isinstance(func, ast.Name) and func.id in ("_rotator", "rotator")
+
+
 def _scan_file(path: str) -> list[str]:
     violations: list[str] = []
     try:
@@ -57,6 +62,14 @@ def _scan_file(path: str) -> list[str]:
         if _is_project_rotator(node) and node.args:
             violations.append(
                 f"{os.path.basename(path)}:{node.lineno}: rw.rotator uses positional arguments; use named pitch/yaw/roll"
+            )
+
+        # Local wrappers must follow the same rule. Calls such as
+        # _rotator(*rotation) are concise but reintroduce the exact semantic
+        # ambiguity this audit exists to eliminate.
+        if _is_local_rotator(node) and node.args:
+            violations.append(
+                f"{os.path.basename(path)}:{node.lineno}: local rotator helper uses positional arguments; use named pitch/yaw/roll"
             )
 
     return violations
