@@ -17,17 +17,6 @@
 *.user
 *.userprefs
 
-# Unreal build products / caches
-*.pch
-*.obj
-*.obj.rsp
-*.response
-*.modules
-*.target
-*.ubt
-*.uba
-*.bin
-
 # OS/editor noise
 .DS_Store
 Thumbs.db
@@ -38,4 +27,6 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+# IMPORTANT: do not globally ignore .obj/.fbx/.glb/.gltf/.bin.
+# Asset packs may legitimately contain those source formats.
 # Keep source assets, Unreal Content, Config, Source and project files tracked.
